@@ -1,0 +1,87 @@
+plugins:
+  - rubocop-performance
+  - rubocop-rspec
+
+AllCops:
+  TargetRubyVersion: 3.4
+  NewCops: enable
+  SuggestExtensions: false
+  Exclude:
+    - "vendor/**/*"
+    - "tmp/**/*"
+
+# ---------------------------------------------------------------------------
+# Metrics
+#
+# Metrics/ClassLength is configured here, globally, and is never silenced per
+# file. The query engine this gem is built around is a long class by nature —
+# eleven operators, the casting rules and the field resolution all answer to
+# the same object — and the two ways to let it through are not equivalent. A
+# `rubocop:disable Metrics/ClassLength` at the top of a file is a blanket that
+# nobody revisits: it hides the growth that comes after it just as well as the
+# length that justified it, and it has to be re-argued in every new file. A
+# single Max, reviewed once and visible here, keeps the limit a shared decision
+# and keeps a class that outgrows it visible as an offence rather than as a
+# comment somebody already granted themselves.
+# ---------------------------------------------------------------------------
+Metrics/ClassLength:
+  Max: 150
+
+Metrics/ModuleLength:
+  Max: 150
+  Exclude:
+    - "spec/**/*"
+
+Metrics/MethodLength:
+  Max: 15
+
+Metrics/AbcSize:
+  Max: 20
+
+Metrics/BlockLength:
+  Exclude:
+    - "spec/**/*"
+    - "*.gemspec"
+
+Layout/LineLength:
+  Max: 100
+
+# Documentation is not optional in this repository: every method carries an
+# RDoc comment, and so does every class and module.
+Style/Documentation:
+  Enabled: true
+
+Style/StringLiterals:
+  EnforcedStyle: double_quotes
+
+Style/StringLiteralsInInterpolation:
+  EnforcedStyle: double_quotes
+
+Style/FrozenStringLiteralComment:
+  Enabled: true
+
+# A multiline literal or argument list carries a trailing comma, so that adding
+# an element shows up as one added line instead of two touched ones.
+Style/TrailingCommaInArrayLiteral:
+  EnforcedStyleForMultiline: comma
+
+Style/TrailingCommaInHashLiteral:
+  EnforcedStyleForMultiline: comma
+
+Style/TrailingCommaInArguments:
+  EnforcedStyleForMultiline: comma
+
+RSpec/MultipleExpectations:
+  Max: 5
+
+RSpec/ExampleLength:
+  Max: 15
+
+RSpec/NestedGroups:
+  Max: 4
+
+# The suite's expectations are about rows and messages, not about the name of
+# the object under test; several describe blocks per file keep a schema-wide
+# assertion readable in one place.
+RSpec/MultipleDescribes:
+  Enabled: false
