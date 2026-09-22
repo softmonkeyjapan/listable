@@ -1,0 +1,20 @@
+# Bundler
+.bundle/
+/vendor/bundle
+Gemfile.lock
+
+# Gem build artefacts
+*.gem
+/pkg/
+
+# Working directories
+/tmp/
+/coverage/
+/doc/
+/.yardoc
+
+# RSpec
+.rspec_status
+
+# macOS
+.DS_Store
