@@ -51,6 +51,12 @@ Layout/LineLength:
 Style/Documentation:
   Enabled: true
 
+# Nothing in this repository is named with one letter, and a rescued exception
+# is no exception: the variable is read inside a message that a maintainer has
+# to understand at a glance.
+Naming/RescuedExceptionsVariableName:
+  PreferredName: error
+
 Style/StringLiterals:
   EnforcedStyle: double_quotes
 

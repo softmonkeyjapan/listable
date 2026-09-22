@@ -9,6 +9,18 @@ RSpec.describe Listable do
     expect(Listable::VERSION).to match(/\A\d+\.\d+\.\d+\z/)
   end
 
+  describe "OPERATORS" do
+    it "is exposed as a public constant carrying eleven operators" do
+      expect(Listable::OPERATORS).to contain_exactly(
+        "=", "!=", ">", ">=", "<", "<=", "in", "not_in", "like", "ilike", "is"
+      )
+    end
+
+    it "is frozen, so that a host reading it cannot widen it" do
+      expect(Listable::OPERATORS).to be_frozen
+    end
+  end
+
   describe "the railtie" do
     # Rails is not in the suite's bundle, which is what makes this assertion a
     # measurement rather than a tautology: the gem is loaded here exactly as an
