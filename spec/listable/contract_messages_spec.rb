@@ -120,6 +120,82 @@ RSpec.describe Listable::Contract do
     end
   end
 
+  describe "an interpolated message read end to end" do
+    # Builds the two interpolating refusals the way a client receives them.
+    #
+    # The surface is handed to the contract as the array of names a host
+    # declares, and the message is read back off the contract's own answer
+    # rather than out of +I18n.t+ with a string prepared here. That is the
+    # whole point of these examples: the token is given a list, and it is the
+    # rendering of that list — +id, name+ and not <tt>["id", "name"]</tt> —
+    # that a client reads inside a complete sentence. A test that handed the
+    # token an already-joined string would render correctly whatever the
+    # contract does and would measure nothing.
+    #
+    # ==== Parameters
+    #
+    # * +locale+ - the locale the request is served in
+    #
+    # ==== Returns
+    #
+    # A hash of message key to the sentence the client reads.
+    def interpolated_refusals(locale)
+      I18n.with_locale(locale) do
+        errors = contract.call(
+          filters: [{ field: "secret", operator: "=", value: "x" }],
+          sort: "secret",
+        ).errors.to_h
+
+        { field_unknown: errors.dig(:filters, 0).first, sort_unknown: errors.fetch(:sort).first }
+      end
+    end
+
+    # Builds the refusal a payload past the cap earns, as the client reads it.
+    #
+    # ==== Parameters
+    #
+    # * +locale+ - the locale the request is served in
+    #
+    # ==== Returns
+    #
+    # The sentence the client reads.
+    def cap_refusal(locale)
+      payload = Array.new(described_class::MAX_CONDITIONS + 1) do
+        { field: "id", operator: "=", value: "1" }
+      end
+
+      I18n.with_locale(locale) { contract.call(filters: payload).errors.to_h.fetch(:filters).first }
+    end
+
+    it "spells out the English sentences a client reads" do
+      expect(interpolated_refusals(:en)).to eq(
+        field_unknown: "The field cannot be filtered on. Allowed fields: id, name.",
+        sort_unknown: "The listing cannot be sorted on this field. Allowed fields: id, name.",
+      )
+      expect(cap_refusal(:en)).to eq("Too many filters: 20 at most.")
+    end
+
+    # The space before each colon is a non-breaking one, spelled as its code
+    # point here so that an editor cannot quietly turn it back into an ordinary
+    # space and leave the example passing on a sentence French typography does
+    # not set that way.
+    it "spells out the French sentences, non-breaking spaces included" do
+      expect(interpolated_refusals(:fr)).to eq(
+        field_unknown: "Le champ ne peut pas être filtré. Champs autorisés\u00A0: id, name.",
+        sort_unknown: "Le tri ne peut pas porter sur ce champ. Champs autorisés\u00A0: id, name.",
+      )
+      expect(cap_refusal(:fr)).to eq("Trop de filtres\u00A0: 20 au maximum.")
+    end
+
+    it "spells out the Japanese sentences a client reads" do
+      expect(interpolated_refusals(:ja)).to eq(
+        field_unknown: "このフィールドでは絞り込めません。使用できるフィールド: id, name。",
+        sort_unknown: "このフィールドでは並び替えできません。使用できるフィールド: id, name。",
+      )
+      expect(cap_refusal(:ja)).to eq("フィルターが多すぎます。最大20件です。")
+    end
+  end
+
   describe "the i18n namespace" do
     it "resolves its messages under the gem's own top-level namespace" do
       expect(described_class.config.messages.top_namespace).to eq("listable")

@@ -11,6 +11,25 @@ internal and changes without ceremony or an entry.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions stay in
 the `0.x` range while the public surface is still allowed to move.
 
+## [0.2.0] — 2026-09-23
+
+### Breaking
+
+- **The fifteen validation messages are reworded.** Each one is now a complete sentence —
+  `The field cannot be filtered on. Allowed fields: id, name.` — where it used to be a clause
+  completing the name of the key it hangs off — `must carry a field among: id, name`. English,
+  French and Japanese are all reworded.
+
+  These strings are served straight to the clients of every listing endpoint that installs the
+  gem, so this is a change visible in HTTP responses. An application already in production
+  answers different text to its clients from the moment it upgrades, and anything asserting on
+  the old wording — a client's test suite, a support runbook, a translated screen — has to be
+  updated with it.
+
+  Nothing else about the messages moves: the fifteen keys are the same keys, and the three
+  interpolation tokens are still `%{cap}` for `too_many` and `%{fields}` for `field_unknown`
+  and `sort_unknown`. A host that overrode a message by key keeps overriding the same key.
+
 ## [0.1.0] — 2026-09-23
 
 First release.
@@ -59,4 +78,5 @@ descending order: `sort=-created_at,name`.
 `operator_required`, `operator_scalar`, `operator_invalid`, `value_required`, `value_scalar`,
 `value_list`, `unknown_key?`, `sort_scalar`, `sort_unknown`.
 
+[0.2.0]: https://github.com/softmonkeyjapan/listable/releases/tag/v0.2.0
 [0.1.0]: https://github.com/softmonkeyjapan/listable/releases/tag/v0.1.0

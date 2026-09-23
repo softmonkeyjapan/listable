@@ -34,7 +34,7 @@ featureful — it is wrong, quietly, in whichever direction the engine happens t
 Listable is distributed from git and is **never published to a package registry**. Pin a tag:
 
 ```ruby
-gem 'listable', github: 'softmonkeyjapan/listable', tag: 'v0.1.0'
+gem 'listable', github: 'softmonkeyjapan/listable', tag: 'v0.2.0'
 ```
 
 ## Quickstart
@@ -380,10 +380,14 @@ own:
 en:
   listable:
     errors:
-      field_unknown: "is not a field you can filter this catalogue on (allowed: %{fields})"
+      field_unknown: "This catalogue cannot be filtered on that field. Allowed fields: %{fields}."
 ```
 
 The other fourteen messages are inherited untouched.
+
+Each shipped message is a complete sentence, because a client reads it on its own in a
+response body with no key beside it to complete. An override is worth writing in the same
+shape.
 
 Three keys interpolate: `too_many` takes `%{cap}`, and `field_unknown` and `sort_unknown` take
 `%{fields}`.

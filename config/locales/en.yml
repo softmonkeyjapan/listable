@@ -9,21 +9,26 @@
 # the railtie puts this file on the application's i18n load path, and i18n
 # deep-merges what comes later over what came before, so an override names the
 # single key it changes and inherits the fourteen others.
+#
+# Each message is a complete sentence rather than a clause completing the name
+# of the key it hangs off. The listing endpoints that install this gem answer
+# these strings straight to their clients, and a client reading a response
+# reads the sentence alone, with no key beside it to complete.
 en:
   listable:
     errors:
-      "list?": "must be a list of conditions indexed by position"
-      "hash?": "must be a condition carrying a field, an operator and a value"
-      too_many: "must carry at most %{cap} conditions"
-      field_required: "must carry a field"
-      field_scalar: "must carry a field as a single value"
-      field_unknown: "must carry a field among: %{fields}"
-      operator_required: "must carry an operator"
-      operator_scalar: "must carry an operator as a single value"
-      operator_invalid: "must carry a supported operator"
-      value_required: "must carry a value"
-      value_scalar: "must carry a single value for this operator"
-      value_list: "must carry a list of single values for this operator"
-      "unknown_key?": "must carry nothing but a field, an operator and a value"
-      sort_scalar: "must be a string of sort keys separated by commas"
-      sort_unknown: "must name sort keys among: %{fields}"
+      "list?": "The filters must be a list of conditions."
+      "hash?": "Each filter must be an object."
+      too_many: "Too many filters: %{cap} at most."
+      field_required: "The field is required."
+      field_scalar: "The field must be a single value."
+      field_unknown: "The field cannot be filtered on. Allowed fields: %{fields}."
+      operator_required: "The operator is required."
+      operator_scalar: "The operator must be a single value."
+      operator_invalid: "The operator is not valid."
+      value_required: "The value is required."
+      value_scalar: "The value must be a single value."
+      value_list: "The value must be a single value or a list of single values."
+      "unknown_key?": "The key is not allowed."
+      sort_scalar: "The sort must be a string."
+      sort_unknown: "The listing cannot be sorted on this field. Allowed fields: %{fields}."
