@@ -9,6 +9,7 @@ require "dry/validation"
 
 require_relative "listable/version"
 require_relative "listable/casting"
+require_relative "listable/conditions"
 require_relative "listable/field"
 require_relative "listable/field_resolver"
 require_relative "listable/filtering"
