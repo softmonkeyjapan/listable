@@ -2,18 +2,20 @@
 # the messages live under the gem's own top-level i18n namespace and how a host
 # overrides one of them.
 #
-# The space before a colon is a non-breaking one, as French typography sets it.
-# Replacing it with an ordinary space lets a client's renderer break the line
-# between the sentence and the list it introduces.
+# The space before a colon is an ordinary one, U+0020. French typography would
+# set a non-breaking space there, and these sentences do not: they reproduce
+# the strings a listing API already answers its clients, character for
+# character. One character of drift is a change visible in a response body, so
+# the published contract decides the spelling here and typography does not.
 fr:
   listable:
     errors:
       "list?": "Les filtres doivent être une liste de conditions."
       "hash?": "Chaque filtre doit être un objet."
-      too_many: "Trop de filtres : %{cap} au maximum."
+      too_many: "Trop de filtres : %{cap} au maximum."
       field_required: "Le champ est requis."
       field_scalar: "Le champ doit être une valeur simple."
-      field_unknown: "Le champ ne peut pas être filtré. Champs autorisés : %{fields}."
+      field_unknown: "Le champ ne peut pas être filtré. Champs autorisés : %{fields}."
       operator_required: "L'opérateur est requis."
       operator_scalar: "L'opérateur doit être une valeur simple."
       operator_invalid: "L'opérateur n'est pas valide."
@@ -22,4 +24,4 @@ fr:
       value_list: "La valeur doit être une valeur simple ou une liste de valeurs simples."
       "unknown_key?": "La clé n'est pas autorisée."
       sort_scalar: "Le tri doit être une chaîne de caractères."
-      sort_unknown: "Le tri ne peut pas porter sur ce champ. Champs autorisés : %{fields}."
+      sort_unknown: "Le tri ne peut pas porter sur ce champ. Champs autorisés : %{fields}."

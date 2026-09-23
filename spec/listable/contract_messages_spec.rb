@@ -175,16 +175,23 @@ RSpec.describe Listable::Contract do
       expect(cap_refusal(:en)).to eq("Too many filters: 20 at most.")
     end
 
-    # The space before each colon is a non-breaking one, spelled as its code
-    # point here so that an editor cannot quietly turn it back into an ordinary
-    # space and leave the example passing on a sentence French typography does
-    # not set that way.
-    it "spells out the French sentences, non-breaking spaces included" do
+    # The space before each colon is an ordinary U+0020, spelled as its code
+    # point here because the two spaces are indistinguishable on screen: an
+    # example that displayed one while asserting the other would read as
+    # correct to everyone who checked it.
+    #
+    # French typography would set a non-breaking space there. These sentences
+    # do not, and that is what this example pins. They reproduce the strings a
+    # listing API already answers its clients, character for character, and a
+    # client reads a response body rather than a typeset page. One character of
+    # drift is a visible change to a published contract, so improving the
+    # punctuation here is a regression, not a fix.
+    it "spells out the French sentences, ordinary spaces included" do
       expect(interpolated_refusals(:fr)).to eq(
-        field_unknown: "Le champ ne peut pas être filtré. Champs autorisés\u00A0: id, name.",
-        sort_unknown: "Le tri ne peut pas porter sur ce champ. Champs autorisés\u00A0: id, name.",
+        field_unknown: "Le champ ne peut pas être filtré. Champs autorisés\u0020: id, name.",
+        sort_unknown: "Le tri ne peut pas porter sur ce champ. Champs autorisés\u0020: id, name.",
       )
-      expect(cap_refusal(:fr)).to eq("Trop de filtres\u00A0: 20 au maximum.")
+      expect(cap_refusal(:fr)).to eq("Trop de filtres\u0020: 20 au maximum.")
     end
 
     it "spells out the Japanese sentences a client reads" do

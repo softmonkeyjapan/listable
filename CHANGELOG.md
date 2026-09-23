@@ -11,6 +11,14 @@ internal and changes without ceremony or an entry.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions stay in
 the `0.x` range while the public surface is still allowed to move.
 
+## [0.2.1] — 2026-09-23
+
+### Fixed
+
+- Three French messages — `too_many`, `field_unknown` and `sort_unknown` — carried a
+  non-breaking space before their colon where the published contract carries an ordinary one.
+  The text is otherwise unchanged, and no message key or interpolation token moves.
+
 ## [0.2.0] — 2026-09-23
 
 ### Breaking
@@ -78,5 +86,6 @@ descending order: `sort=-created_at,name`.
 `operator_required`, `operator_scalar`, `operator_invalid`, `value_required`, `value_scalar`,
 `value_list`, `unknown_key?`, `sort_scalar`, `sort_unknown`.
 
+[0.2.1]: https://github.com/softmonkeyjapan/listable/releases/tag/v0.2.1
 [0.2.0]: https://github.com/softmonkeyjapan/listable/releases/tag/v0.2.0
 [0.1.0]: https://github.com/softmonkeyjapan/listable/releases/tag/v0.1.0

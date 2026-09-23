@@ -34,7 +34,7 @@ featureful — it is wrong, quietly, in whichever direction the engine happens t
 Listable is distributed from git and is **never published to a package registry**. Pin a tag:
 
 ```ruby
-gem 'listable', github: 'softmonkeyjapan/listable', tag: 'v0.2.0'
+gem 'listable', github: 'softmonkeyjapan/listable', tag: 'v0.2.1'
 ```
 
 ## Quickstart
