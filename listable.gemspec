@@ -35,7 +35,15 @@ Gem::Specification.new do |spec|
   # every refusal the host serves its clients is a +translation missing+
   # string — with nothing in this repository turning red, because here the
   # files are on disk whether or not the package carries them.
-  spec.files = Dir.glob("lib/**/*.rb") + Dir.glob("config/locales/*.yml") + ["LICENSE"]
+  #
+  # The README and the changelog are packaged for a different reason: they are
+  # the whole documentation of a gem that is installed from git and never from
+  # a registry, so there is no product page carrying them and a consumer reads
+  # them out of the package or not at all.
+  spec.files =
+    Dir.glob("lib/**/*.rb") +
+    Dir.glob("config/locales/*.yml") +
+    ["LICENSE", "README.md", "CHANGELOG.md"]
   spec.require_paths = ["lib"]
 
   spec.add_dependency "activerecord", ">= 8.1"

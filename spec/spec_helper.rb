@@ -6,6 +6,7 @@ require_relative "support/database"
 require_relative "support/schema"
 require_relative "support/translations"
 require_relative "support/models"
+require_relative "support/readme"
 
 RSpec.configure do |config|
   config.disable_monkey_patching!

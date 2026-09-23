@@ -14,6 +14,12 @@ gemspec
 # the engine resolves — raises before a single assertion runs.
 gem "json", "~> 2.7"
 gem "pg", "~> 1.5"
+
+# The README's query-string examples are executed by the suite rather than
+# retyped into it, so the examples have to be parsed the way a web server would
+# parse them. Rack owns that parsing; it is a development dependency and never
+# a runtime one, because the gem itself never sees a request.
+gem "rack", "~> 3.1"
 gem "rake", "~> 13.0"
 gem "rspec", "~> 3.13"
 gem "rubocop", "~> 1.66"

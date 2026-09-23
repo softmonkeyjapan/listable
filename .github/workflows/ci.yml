@@ -1,0 +1,129 @@
+# The gem's gates, run on every push and every pull request.
+#
+# Three jobs, and the second one is not a copy of the first. The gem declares
+# the translation library nowhere in its gemspec and detects it at runtime by
+# asking the model whether it answers the library's interface; a pipeline that
+# only ever ran with the library installed would make "it works without it" an
+# assertion nobody measured. The run that excludes the bundler group is the one
+# that turns red the day somebody adds an unguarded call to the library.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  suite:
+    name: Suite (translations installed)
+    runs-on: ubuntu-latest
+
+    # The suite runs real queries against a real PostgreSQL. Nothing about the
+    # engine — a pattern operator refused on a non-textual column, a value that
+    # reaches Arel, a translated attribute compared as a whole JSON document —
+    # is visible in the relation it builds, so an in-memory substitute would be
+    # green on exactly the bugs the gem exists to prevent.
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    # The names come from spec/support/database.rb, which reads every
+    # connection setting out of the environment for this exact reason. The
+    # suite creates the database itself on first connection, so nothing here
+    # provisions one.
+    env:
+      LISTABLE_DATABASE_HOST: localhost
+      LISTABLE_DATABASE_PORT: 5432
+      LISTABLE_DATABASE_USERNAME: postgres
+      LISTABLE_DATABASE_PASSWORD: postgres
+      LISTABLE_DATABASE_NAME: listable_test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # The pg gem builds a native extension against libpq.
+      - name: Install libpq
+        run: sudo apt-get update && sudo apt-get install -y libpq-dev
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+          bundler-cache: true
+
+      - name: Run the suite
+        run: bundle exec rspec
+
+  suite_without_translations:
+    name: Suite (translations absent)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    # BUNDLE_WITHOUT is set for the whole job and not only for the test command,
+    # so the dependency set this job resolves genuinely omits the translation
+    # library rather than installing it and hiding it. The library is then off
+    # the load path, the harness meets a LoadError, and the examples that need
+    # it skip while every other one runs unchanged.
+    env:
+      BUNDLE_WITHOUT: translations
+      LISTABLE_DATABASE_HOST: localhost
+      LISTABLE_DATABASE_PORT: 5432
+      LISTABLE_DATABASE_USERNAME: postgres
+      LISTABLE_DATABASE_PASSWORD: postgres
+      LISTABLE_DATABASE_NAME: listable_test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install libpq
+        run: sudo apt-get update && sudo apt-get install -y libpq-dev
+
+      # The cache is versioned apart from the other job's: the two resolve
+      # different dependency sets, and one bundle restored over the other would
+      # put the translation library back on this job's load path and quietly
+      # turn it into a second copy of the first.
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+          bundler-cache: true
+          cache-version: without-translations
+
+      - name: Run the suite
+        run: bundle exec rspec
+
+  lint:
+    name: Linter
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install libpq
+        run: sudo apt-get update && sudo apt-get install -y libpq-dev
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+          bundler-cache: true
+
+      - name: Run the linter
+        run: bundle exec rubocop
