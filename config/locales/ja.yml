@@ -1,0 +1,21 @@
+# The Japanese half of the gem's closed message vocabulary. See +en.yml+ for
+# why the messages live under the gem's own top-level i18n namespace and how a
+# host overrides one of them.
+ja:
+  listable:
+    errors:
+      "list?": "位置で索引付けされた条件のリストである必要があります"
+      "hash?": "フィールド、演算子、値を持つ条件である必要があります"
+      too_many: "条件は最大 %{cap} 件までです"
+      field_required: "フィールドが必要です"
+      field_scalar: "フィールドは単一の値である必要があります"
+      field_unknown: "フィールドは次のいずれかである必要があります: %{fields}"
+      operator_required: "演算子が必要です"
+      operator_scalar: "演算子は単一の値である必要があります"
+      operator_invalid: "サポートされている演算子である必要があります"
+      value_required: "値が必要です"
+      value_scalar: "この演算子には単一の値が必要です"
+      value_list: "この演算子には単一の値のリストが必要です"
+      "unknown_key?": "フィールド、演算子、値のみを持つ必要があります"
+      sort_scalar: "カンマ区切りのソートキー文字列である必要があります"
+      sort_unknown: "ソートキーは次のいずれかである必要があります: %{fields}"

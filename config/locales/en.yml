@@ -1,0 +1,29 @@
+# The gem's validation messages, under its own top-level i18n namespace.
+#
+# The namespace is +listable+ and not +dry_validation+ so that these fifteen
+# messages cannot collide with the messages a host writes for its own
+# contracts: two gems answering to the same namespace would have the last one
+# loaded silently rewording the other's refusals.
+#
+# A host overrides one message by loading a file of its own after this one —
+# the railtie puts this file on the application's i18n load path, and i18n
+# deep-merges what comes later over what came before, so an override names the
+# single key it changes and inherits the fourteen others.
+en:
+  listable:
+    errors:
+      "list?": "must be a list of conditions indexed by position"
+      "hash?": "must be a condition carrying a field, an operator and a value"
+      too_many: "must carry at most %{cap} conditions"
+      field_required: "must carry a field"
+      field_scalar: "must carry a field as a single value"
+      field_unknown: "must carry a field among: %{fields}"
+      operator_required: "must carry an operator"
+      operator_scalar: "must carry an operator as a single value"
+      operator_invalid: "must carry a supported operator"
+      value_required: "must carry a value"
+      value_scalar: "must carry a single value for this operator"
+      value_list: "must carry a list of single values for this operator"
+      "unknown_key?": "must carry nothing but a field, an operator and a value"
+      sort_scalar: "must be a string of sort keys separated by commas"
+      sort_unknown: "must name sort keys among: %{fields}"

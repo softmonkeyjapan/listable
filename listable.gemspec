@@ -28,7 +28,14 @@ Gem::Specification.new do |spec|
     "rubygems_mfa_required" => "true",
   }
 
-  spec.files = Dir.glob("lib/**/*.rb") + ["LICENSE"]
+  # The locale files are packaged alongside the code, and not because a
+  # gem tidily ships its assets: the contract globs +config/locales+ at load
+  # time to find the messages it resolves. A locale file left out of this
+  # list is absent from the installed gem, the glob comes back short, and
+  # every refusal the host serves its clients is a +translation missing+
+  # string — with nothing in this repository turning red, because here the
+  # files are on disk whether or not the package carries them.
+  spec.files = Dir.glob("lib/**/*.rb") + Dir.glob("config/locales/*.yml") + ["LICENSE"]
   spec.require_paths = ["lib"]
 
   spec.add_dependency "activerecord", ">= 8.1"

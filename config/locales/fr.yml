@@ -1,0 +1,21 @@
+# The French half of the gem's closed message vocabulary. See +en.yml+ for why
+# the messages live under the gem's own top-level i18n namespace and how a host
+# overrides one of them.
+fr:
+  listable:
+    errors:
+      "list?": "doit être une liste de conditions indexées par position"
+      "hash?": "doit être une condition portant un champ, un opérateur et une valeur"
+      too_many: "ne doit pas porter plus de %{cap} conditions"
+      field_required: "doit porter un champ"
+      field_scalar: "doit porter un champ sous forme de valeur simple"
+      field_unknown: "doit porter un champ parmi : %{fields}"
+      operator_required: "doit porter un opérateur"
+      operator_scalar: "doit porter un opérateur sous forme de valeur simple"
+      operator_invalid: "doit porter un opérateur pris en charge"
+      value_required: "doit porter une valeur"
+      value_scalar: "doit porter une valeur simple pour cet opérateur"
+      value_list: "doit porter une liste de valeurs simples pour cet opérateur"
+      "unknown_key?": "ne doit porter qu'un champ, un opérateur et une valeur"
+      sort_scalar: "doit être une chaîne de clés de tri séparées par des virgules"
+      sort_unknown: "doit nommer des clés de tri parmi : %{fields}"
