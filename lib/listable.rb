@@ -12,6 +12,7 @@ require_relative "listable/casting"
 require_relative "listable/field"
 require_relative "listable/field_resolver"
 require_relative "listable/filtering"
+require_relative "listable/sorting"
 
 # Filtering and sorting engine for PostgreSQL-backed listing endpoints.
 #
@@ -39,6 +40,18 @@ module Listable
   # rather than into an unfiltered listing served to a client who believes it
   # filtered.
   class UnknownField < StandardError; end
+
+  # Raised when a sort key that no whitelist carries reaches the query builder.
+  #
+  # It is a class of its own rather than the filtering refusal reused, because
+  # a caller that rescues one of the two has crossed one of two different
+  # surfaces — a listing may accept a filter on a field it cannot order by —
+  # and a single error would leave it guessing which. The reason for raising is
+  # the same as its sibling's: from HTTP the contract answers 422 first, so
+  # reaching here means an internal caller named a key the model does not
+  # declare, and raising turns that into a red test rather than into a listing
+  # served unordered to a client who believes it sorted.
+  class UnknownKey < StandardError; end
 
   class_methods do
     # Declares the fields a client may name, or reads back what was declared.
@@ -73,6 +86,24 @@ module Listable
     # The narrowed relation.
     def filtering(conditions, custom_filters = {})
       Filtering.new(all, conditions, custom_filters).apply
+    end
+
+    # Orders a relation by the keys a client asked for.
+    #
+    # It reads the current scope rather than the bare table, so that a listing
+    # orders the rows its own scoping and its authorization narrowing left
+    # standing.
+    #
+    # ==== Parameters
+    #
+    # * +sort+ - the sort parameter as the client sent it: keys separated by
+    #   commas, a leading +-+ asking for descending order
+    #
+    # ==== Returns
+    #
+    # The ordered relation.
+    def sorting(sort)
+      Sorting.new(all, sort).apply
     end
 
     private
