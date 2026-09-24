@@ -192,7 +192,12 @@ RSpec.describe Listable::Contract do
     end
   end
 
-  describe "one condition, one message" do
+  # Each condition below carries exactly one mistake, so each answers exactly
+  # one message. What that pins is the bound inside a family of checks — a
+  # container is reported as a container and not also as an undeclared name —
+  # and not a bound on the condition, which answers every mistake it carries.
+  # The examples for that live in "every mistake a condition carries".
+  describe "one family of checks, one message" do
     cases = {
       "a field that is a container" => [{ field: %w[id], operator: "=", value: "1" },
                                         :field_scalar],
@@ -220,14 +225,6 @@ RSpec.describe Listable::Contract do
       "a key the format does not define" => [
         { field: "id", operator: "=", value: "1", extra: "x" }, :unknown_key?
       ],
-      # The invented key and the fault it causes arrive together: a client that
-      # misspelled +operator+ sent no operator, and the two checks both have
-      # something to say about this condition. Reporting the missing operator
-      # sends the client looking for a key it is certain it wrote, which is why
-      # the keys are read before the three values are.
-      "a key the format does not define in place of one it does" => [
-        { field: "name", operatr: "=", value: "x" }, :unknown_key?
-      ],
       "an entry that is not a condition at all" => ["id=1", :hash?],
     }
 
@@ -237,6 +234,74 @@ RSpec.describe Listable::Contract do
           filters: { 0 => [message(key, fields: filterable)] },
         )
       end
+    end
+  end
+
+  describe "every mistake a condition carries" do
+    # A client told only that its field is undeclared corrects the field, sends
+    # the request again, and learns the operator was wrong too — one round trip
+    # per mistake, on a request it could have fixed in one. The order is the
+    # fixed one: unknown key, then field, then operator, then value.
+    it "answers a condition wrong on three axes with all three messages" do
+      condition = { field: "  ", operator: "~" }
+
+      expect(refusals(filters: [condition])).to eq(
+        filters: {
+          0 => [
+            message(:field_required),
+            message(:operator_invalid),
+            message(:value_required),
+          ],
+        },
+      )
+    end
+
+    # The invented key and the fault it looks like arrive together: a client
+    # that misspelled +operator+ sent no operator. Reporting only the missing
+    # operator sends it looking for a key it is certain it wrote, which is why
+    # the keys are read first — and why reading them does not silence the rest.
+    it "answers a stray key and an undeclared field with both messages" do
+      condition = { field: "secret", operator: "=", value: "x", extra: "x" }
+
+      expect(refusals(filters: [condition])).to eq(
+        filters: { 0 => [message(:unknown_key?), message(:field_unknown, fields: filterable)] },
+      )
+    end
+
+    # The value check reads the operator for its arity even when that operator
+    # has just been refused. An operator outside the vocabulary is not a list
+    # operator, so the array is judged on its own — and fixing either mistake
+    # alone would still leave the request wrong.
+    it "answers an invalid operator and a non-scalar value with both messages" do
+      condition = { field: "id", operator: "~", value: %w[1 2] }
+
+      expect(refusals(filters: [condition])).to eq(
+        filters: { 0 => [message(:operator_invalid), message(:value_scalar)] },
+      )
+    end
+
+    # Every family after the shape check reads keys, and an entry that is not
+    # an object carries none. There is nothing further to say about a string
+    # sitting where a condition was expected.
+    it "answers an entry that is not an object with the shape message alone" do
+      expect(refusals(filters: ["id=1"])).to eq(filters: { 0 => [message(:hash?)] })
+    end
+
+    # Attribution is the property that keeps a payload of malformed conditions
+    # readable — not a limit on how many messages there are. Each condition's
+    # messages stay under the index the client sent, whatever their number.
+    it "keeps each condition's messages under its own index" do
+      payload = {
+        "0" => { field: "  ", operator: "~" },
+        "3" => { field: "secret", operator: "=", value: "x" },
+      }
+
+      expect(refusals(filters: payload)).to eq(
+        filters: {
+          0 => [message(:field_required), message(:operator_invalid), message(:value_required)],
+          3 => [message(:field_unknown, fields: filterable)],
+        },
+      )
     end
   end
 

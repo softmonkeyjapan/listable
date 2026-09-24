@@ -102,7 +102,10 @@ module Listable
     #
     # Per-condition refusals carry the index the client sent, holes included,
     # so that a client reading the response can map every message back to the
-    # condition it belongs to.
+    # condition it belongs to. A condition contributes one failure per mistake
+    # it carries, all under that one index: the index is what makes a payload
+    # of malformed conditions readable, so there is nothing to gain by
+    # withholding a client's second mistake until it has fixed its first.
     rule(:filters) do
       payload = values[:filters]
       next if payload.blank?
@@ -197,7 +200,14 @@ module Listable
       payload.map { |index, entry| [index.to_s.to_i, entry] }.sort_by(&:first)
     end
 
-    # Names what is wrong with each condition that is wrong with something.
+    # Names everything that is wrong with each condition that is wrong.
+    #
+    # A condition contributes as many pairs as it has mistakes, all carrying
+    # the same index, and the caller posts one failure per pair under that one
+    # key. dry-validation accumulates several failures on a key rather than
+    # replacing the previous one, which is what lets a client read that its
+    # field is blank *and* that its operator is not one the gem knows — two
+    # corrections it can make before sending the request again.
     #
     # ==== Parameters
     #
@@ -205,12 +215,11 @@ module Listable
     #
     # ==== Returns
     #
-    # An array of <tt>[index, refusal]</tt> pairs, one at most per condition.
+    # An array of <tt>[index, refusal]</tt> pairs, in the order a client reads
+    # them.
     def condition_refusals(payload)
-      entries(payload).filter_map do |index, entry|
-        refusal = ConditionCheck.new(entry, filterable_fields).refusal
-
-        [index, refusal] if refusal
+      entries(payload).flat_map do |index, entry|
+        ConditionCheck.new(entry, filterable_fields).refusals.map { |refusal| [index, refusal] }
       end
     end
 

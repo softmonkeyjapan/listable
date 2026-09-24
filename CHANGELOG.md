@@ -11,6 +11,27 @@ internal and changes without ceremony or an entry.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions stay in
 the `0.x` range while the public surface is still allowed to move.
 
+## [0.3.0] — 2026-09-24
+
+### Breaking
+
+- **A condition answers every mistake it carries again**, not just the first one. A condition
+  whose field is blank, whose operator is unknown and whose value is missing answers three
+  messages instead of one, in that fixed order.
+
+  Earlier versions returned one message per condition, which made a client discover its
+  mistakes one round trip at a time: told only that its field was undeclared, it corrected the
+  field, sent the request again and learned the operator was wrong too. The rule that keeps a
+  payload of malformed conditions readable is that every message is attributed to the index the
+  client sent — not that there is only one of them.
+
+  Each of the four families of checks still contributes one message at most, so a field that is
+  an object is reported as an object and not also as an undeclared name. An entry that is not
+  an object at all still answers that alone.
+
+  A response body can therefore carry more messages under an index than it did in `0.2.x`. No
+  message key, text or interpolation token changes.
+
 ## [0.2.1] — 2026-09-23
 
 ### Fixed
@@ -86,6 +107,7 @@ descending order: `sort=-created_at,name`.
 `operator_required`, `operator_scalar`, `operator_invalid`, `value_required`, `value_scalar`,
 `value_list`, `unknown_key?`, `sort_scalar`, `sort_unknown`.
 
+[0.3.0]: https://github.com/softmonkeyjapan/listable/releases/tag/v0.3.0
 [0.2.1]: https://github.com/softmonkeyjapan/listable/releases/tag/v0.2.1
 [0.2.0]: https://github.com/softmonkeyjapan/listable/releases/tag/v0.2.0
 [0.1.0]: https://github.com/softmonkeyjapan/listable/releases/tag/v0.1.0

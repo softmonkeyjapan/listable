@@ -34,7 +34,7 @@ featureful — it is wrong, quietly, in whichever direction the engine happens t
 Listable is distributed from git and is **never published to a package registry**. Pin a tag:
 
 ```ruby
-gem 'listable', github: 'softmonkeyjapan/listable', tag: 'v0.2.1'
+gem 'listable', github: 'softmonkeyjapan/listable', tag: 'v0.3.0'
 ```
 
 ## Quickstart
@@ -314,11 +314,18 @@ where the host adds what its custom filters serve.
 - A payload that is not a positional list, and a payload carrying more than twenty conditions.
   Both land on the `filters` parameter and stop there: a payload that is not a list has no
   conditions to attribute anything to.
-- Per condition, in a fixed order and at most **one message per condition**: an unknown key,
-  then the field (container, blank, undeclared), then the operator (container, blank, outside
-  the vocabulary), then the value (missing key, then shape). The message is attributed to the
-  index the client sent, holes included, so a client maps every message back to the condition
-  that caused it.
+- Per condition, **every mistake it carries**, in a fixed order: an unknown key, then the field
+  (container, blank, undeclared), then the operator (container, blank, outside the vocabulary),
+  then the value (missing key, then shape). A condition wrong on three axes answers three
+  messages, so a client corrects its request once instead of discovering its mistakes one round
+  trip at a time. Each of those four families contributes **one message at most**: a field that
+  is an object is told it is an object, not also told that object is not a declared field.
+- An entry that is not an object at all answers that alone — there is nothing further to say
+  about a string sitting where a condition was expected.
+
+  Every message is attributed to the index the client sent, holes included, so a client maps
+  each one back to the condition that caused it. That attribution — and not any limit on how
+  many messages there are — is what keeps twenty malformed conditions readable.
 - A sort that is not a string, and a sort naming an undeclared key. The failure lands on `sort`
   and never under `filters`, and it is produced **once** for the whole parameter: the message
   enumerates the allowed keys, so repeating it per key would say the same thing twice.

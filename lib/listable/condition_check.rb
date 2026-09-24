@@ -3,13 +3,17 @@
 module Listable
   # Reads one condition of a filters payload and names what is wrong with it.
   #
-  # It exists apart from the contract because of one property the contract
-  # cannot express in a rule block: a condition earns *at most one* message. A
-  # client sending twenty malformed conditions must read twenty messages it can
-  # act on, not eighty strings it has to guess the origin of, and a condition
-  # whose field is an object must be told its field is an object rather than
-  # also being told that object is not a declared field — the second message is
-  # noise built on the first.
+  # It exists apart from the contract because the ordering it enforces does not
+  # fit in a rule block. A condition answers *every* mistake it carries — a
+  # blank field, an unknown operator and a missing value are three messages, so
+  # that a client fixes its request once instead of discovering its mistakes
+  # one round trip at a time. What is bounded is each family of checks, which
+  # contributes one message at most: a field that is an object is told it is an
+  # object, not also told that object is not a declared field, because the
+  # second message is noise built on the first.
+  #
+  # The property that keeps twenty malformed conditions readable is the index
+  # every message is attributed to, not a limit on how many there are.
   #
   # What the check refuses is the shape of a condition, never its meaning: a
   # field the model cannot narrow on with that operator, and a value the engine
@@ -42,30 +46,43 @@ module Listable
       @fields = fields.map(&:to_s)
     end
 
-    # Names the single thing this condition is refused for.
+    # Names everything this condition is refused for.
     #
-    # The chain below is the whole point of the object, and the order of its
-    # links is a decision rather than a convenience. It runs shape, then keys,
-    # then field, then operator, then value, and it stops at the first link
-    # that answers, because +||+ is what guarantees one condition earns one
-    # message. Reordering it, or turning it into a list of checks whose
-    # refusals are all collected, brings back the failure it exists against: a
-    # condition whose field is an array answers +field_scalar+ *and*
-    # +field_unknown+, a condition carrying a stray key answers that plus every
-    # complaint about the three keys it got right, and the client is handed a
-    # pile of strings it cannot map back to anything it sent.
+    # A condition wrong on three axes answers three messages. A client fixing
+    # its request needs to read every one of them at once: told only that its
+    # field is undeclared, it corrects the field, sends the request again, and
+    # learns the operator was wrong too — one round trip per mistake, on a
+    # request it could have fixed in one.
     #
-    # Within the field and the operator the order is the same reasoning one
-    # level down: a container comes before a blank, which comes before an
-    # unknown, because reading a container as a string would call it unknown
-    # and say nothing about the fact that it is an object.
+    # The rule this object enforces is *attribution*, not scarcity. Twenty
+    # malformed conditions must answer messages a client can map back to the
+    # conditions that caused them, which is what the index does, and what no
+    # amount of withholding would achieve.
+    #
+    # Two orderings matter, and neither is a convenience:
+    #
+    # The shape refusal stands alone and short-circuits the rest. Every family
+    # after it reads keys, and an entry that is not an object carries none —
+    # there is nothing further to say about a string sitting where a condition
+    # was expected.
+    #
+    # Within a family the checks still stop at the first one that answers, so a
+    # family contributes one message at most: a container comes before a blank,
+    # which comes before a name no whitelist carries, because reading a
+    # container as a string would call it unknown and say nothing about the
+    # fact that it is an object. That is the pile of unreadable strings worth
+    # avoiding — a field reported twice for one mistake — and it is a different
+    # thing from a condition reporting its three separate mistakes.
     #
     # ==== Returns
     #
-    # A <tt>[message key, tokens]</tt> pair, or +nil+ when the condition is
-    # well-formed.
-    def refusal
-      shape_refusal || key_refusal || field_refusal || operator_refusal || value_refusal
+    # An array of <tt>[message key, tokens]</tt> pairs, empty when the
+    # condition is well-formed.
+    def refusals
+      shape = shape_refusal
+      return [shape] if shape
+
+      [key_refusal, field_refusal, operator_refusal, value_refusal].compact
     end
 
     private
@@ -100,9 +117,10 @@ module Listable
 
     # Refuses a condition carrying a key the format does not define.
     #
-    # It runs before the three keys are read so that a client that misspelled
-    # +operator+ is told about the key it invented, and not about the operator
-    # it appears not to have sent.
+    # It is reported first so that a client that misspelled +operator+ reads
+    # about the key it invented before it reads that the operator is missing.
+    # It does not replace those other messages: a condition carrying a stray
+    # key and an undeclared field is wrong twice and answers twice.
     #
     # ==== Returns
     #
@@ -171,6 +189,13 @@ module Listable
     # A missing +value+ key and a value set to nil are told apart on purpose: a
     # client that sent <tt>value=</tt> asked about the empty string, and one
     # that sent no +value+ at all sent an incomplete condition.
+    #
+    # The operator is read here even when it has just been refused, and that is
+    # deliberate rather than an oversight: arity is the only thing this check
+    # asks of it, an operator outside the vocabulary simply is not a list
+    # operator, and the value is judged on its own. A condition sending both an
+    # invalid operator and an array answers about both, because fixing either
+    # one alone still leaves the request wrong.
     #
     # ==== Returns
     #
