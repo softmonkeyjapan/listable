@@ -213,6 +213,48 @@ RSpec.describe Listable::Conditions do
     end
   end
 
+  # The contract attributes a refusal to the index the client sent, and a
+  # client lines those messages up against the list this normaliser produced.
+  # The two therefore have to agree on the order of a payload down to its
+  # tie-break: if one sorted "7" before "007" and the other the reverse, a
+  # client matching by position would read a message against the wrong
+  # condition, and nothing in either object alone would look wrong.
+  describe "the order the validation contract reports against" do
+    # A contract that refuses every field, so each condition earns one message
+    # and the indices come back complete.
+    #
+    # ==== Returns
+    #
+    # A contract bound to an empty filterable surface.
+    def refusing_contract
+      Listable::Contract.new(filterable_fields: [], sortable_fields: [])
+    end
+
+    it "orders its conditions the way the contract orders its refusals" do
+      payload = {
+        "10" => { field: "a", operator: "=", value: "x" },
+        "007" => { field: "b", operator: "=", value: "x" },
+        "2" => { field: "c", operator: "=", value: "x" },
+      }
+      indices = refusing_contract.call(filters: payload).errors.to_h.fetch(:filters).keys
+
+      expect(indices).to eq(%w[2 007 10])
+      expect(described_class.new(payload).to_a.pluck(:field))
+        .to eq(indices.map { |index| payload.fetch(index)[:field] })
+    end
+
+    it "keeps arrival order between two indices that agree as numbers" do
+      payload = {
+        "7" => { field: "a", operator: "=", value: "x" },
+        "007" => { field: "b", operator: "=", value: "x" },
+      }
+      indices = refusing_contract.call(filters: payload).errors.to_h.fetch(:filters).keys
+
+      expect(indices).to eq(%w[7 007])
+      expect(described_class.new(payload).to_a.pluck(:field)).to eq(%w[a b])
+    end
+  end
+
   describe "the list the filtering engine reads" do
     let(:model) { Listable::Harness::Widget }
 

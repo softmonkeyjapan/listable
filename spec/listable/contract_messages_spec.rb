@@ -146,7 +146,7 @@ RSpec.describe Listable::Contract do
           sort: "secret",
         ).errors.to_h
 
-        { field_unknown: errors.dig(:filters, 0).first, sort_unknown: errors.fetch(:sort).first }
+        { field_unknown: errors.dig(:filters, "0").first, sort_unknown: errors.fetch(:sort).first }
       end
     end
 

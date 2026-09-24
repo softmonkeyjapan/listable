@@ -90,6 +90,13 @@ module Listable
     # the client's payload is in a format the engine does not speak, and the
     # contract is the place that says so.
     #
+    # The ordering is the one the validation contract reports its refusals in,
+    # down to the tie-break: the contract attributes a message to the index the
+    # client sent, and a client lines those messages up against this list. Two
+    # keys that differ as strings and agree as numbers — <tt>"7"</tt> and
+    # <tt>"007"</tt> — therefore keep arrival order here as they do there,
+    # rather than an order nothing decides.
+    #
     # The indices are the positions, which is what makes the two accepted
     # shapes mean the same list: entries are ordered by the index the client
     # sent, and the indices need not be contiguous because a client dropping
@@ -106,7 +113,9 @@ module Listable
     def indexed(hash)
       return [] unless hash.keys.all? { |key| key.to_s.match?(INDEX) }
 
-      hash.sort_by { |index, _entry| index.to_s.to_i }.map(&:last)
+      hash
+        .sort_by.with_index { |(index, _entry), position| [index.to_s.to_i, position] }
+        .map(&:last)
     end
 
     # Normalises one entry into the condition the engine reads.

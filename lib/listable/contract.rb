@@ -182,10 +182,27 @@ module Listable
 
     # Pairs every condition with the index the client gave it.
     #
-    # An array's index is its position; a hash's index is its key, read as a
-    # number and sorted, so that the two accepted shapes attribute their
-    # messages the same way and a payload numbered 0 and 7 reports against 0
-    # and 7 rather than against 0 and 1.
+    # The index is reported exactly as it arrived, and that is the whole
+    # contract of this method: a client matches a message back to the condition
+    # it sent by comparing this key to the one it wrote. Reading the key as a
+    # number and reporting the number breaks that correspondence the moment the
+    # client writes anything but the canonical form — <tt>filters[007]</tt>
+    # comes back attributed to <tt>7</tt>, an index the client never sent, and
+    # matching by key fails at the one thing the positional format exists to
+    # make possible.
+    #
+    # Ordering and reporting therefore read different values. The entries are
+    # ordered by the numeric value of the index, because a payload is a
+    # positional list and its refusals read in the order the client wrote its
+    # conditions; the key handed back is the untouched one. The position within
+    # the payload breaks a tie, so two keys that differ as strings and agree as
+    # numbers — <tt>"7"</tt> and <tt>"007"</tt> — keep arrival order instead of
+    # an order nothing decides.
+    #
+    # An array's index is its position, rendered as a string like a hash's key.
+    # The two accepted shapes must report the same type or an in-process caller
+    # reading the result hash has to know which shape its own web layer parsed
+    # the request into.
     #
     # ==== Parameters
     #
@@ -193,11 +210,31 @@ module Listable
     #
     # ==== Returns
     #
-    # An array of <tt>[index, entry]</tt> pairs.
+    # An array of <tt>[index, entry]</tt> pairs, the index a string.
     def entries(payload)
-      return payload.each_with_index.map { |entry, index| [index, entry] } if payload.is_a?(Array)
+      return positions(payload) if payload.is_a?(Array)
 
-      payload.map { |index, entry| [index.to_s.to_i, entry] }.sort_by(&:first)
+      payload
+        .map { |index, entry| [index.to_s, entry] }
+        .sort_by.with_index { |(index, _entry), position| [index.to_i, position] }
+    end
+
+    # Pairs every condition of an array payload with its position.
+    #
+    # The position is rendered as a string so that an array payload and a hash
+    # payload report the same type of key. An in-process caller reading the
+    # result hash would otherwise have to know which of the two shapes its own
+    # web layer parsed the request into before it could look a refusal up.
+    #
+    # ==== Parameters
+    #
+    # * +payload+ - the filters parameter, known to be an array
+    #
+    # ==== Returns
+    #
+    # An array of <tt>[index, entry]</tt> pairs, the index a string.
+    def positions(payload)
+      payload.each_with_index.map { |entry, index| [index.to_s, entry] }
     end
 
     # Names everything that is wrong with each condition that is wrong.

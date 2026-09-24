@@ -11,6 +11,24 @@ internal and changes without ceremony or an entry.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions stay in
 the `0.x` range while the public surface is still allowed to move.
 
+## [0.4.0] — 2026-09-24
+
+### Breaking
+
+- **A refusal is attributed to the index the client sent, written as the client wrote it.**
+  The index used to be read as a number before it became the failure key, so a client sending
+  `filters[007]` read its refusal under `7` — an index it never sent — and matching a message
+  back to its condition by key failed on exactly the payload that needed it.
+
+  The key is now a string for both accepted payload shapes. An array payload reports under
+  `"0"`, `"1"`, and a hash payload reports the key it received. Callers reading the result hash
+  in process must look refusals up by string; over HTTP the change is visible only for an index
+  that was not already in canonical form, since JSON stringifies object keys either way.
+
+  Conditions are still read and reported in the numeric order of their indices: ordering and
+  reporting read different values. Two indices that differ as text and agree as numbers —
+  `"7"` and `"007"` — keep arrival order, in `Listable::Conditions` as in `Listable::Contract`.
+
 ## [0.3.0] — 2026-09-24
 
 ### Breaking
@@ -107,6 +125,7 @@ descending order: `sort=-created_at,name`.
 `operator_required`, `operator_scalar`, `operator_invalid`, `value_required`, `value_scalar`,
 `value_list`, `unknown_key?`, `sort_scalar`, `sort_unknown`.
 
+[0.4.0]: https://github.com/softmonkeyjapan/listable/releases/tag/v0.4.0
 [0.3.0]: https://github.com/softmonkeyjapan/listable/releases/tag/v0.3.0
 [0.2.1]: https://github.com/softmonkeyjapan/listable/releases/tag/v0.2.1
 [0.2.0]: https://github.com/softmonkeyjapan/listable/releases/tag/v0.2.0

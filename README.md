@@ -34,7 +34,7 @@ featureful — it is wrong, quietly, in whichever direction the engine happens t
 Listable is distributed from git and is **never published to a package registry**. Pin a tag:
 
 ```ruby
-gem 'listable', github: 'softmonkeyjapan/listable', tag: 'v0.3.0'
+gem 'listable', github: 'softmonkeyjapan/listable', tag: 'v0.4.0'
 ```
 
 ## Quickstart
@@ -175,6 +175,12 @@ Two notes on the wire, both visible in the examples above:
 Indices are positions, not identifiers. They need not be contiguous: a client that drops one
 condition out of a form leaves a hole rather than renumbering. Duplicates are preserved in the
 order they arrived.
+
+Conditions are read in the numeric order of their indices, and a validation refusal comes back
+under the index **exactly as it was written** — `filters[007]` is refused under `"007"`, not
+under `7`. Ordering and reporting read different values on purpose: a client compares the key
+it reads to the key it wrote, and a normalised key would not match. Two indices that differ as
+text and agree as numbers keep arrival order.
 
 A programmatic caller passes a real array instead, and means the same list:
 
@@ -323,9 +329,12 @@ where the host adds what its custom filters serve.
 - An entry that is not an object at all answers that alone — there is nothing further to say
   about a string sitting where a condition was expected.
 
-  Every message is attributed to the index the client sent, holes included, so a client maps
-  each one back to the condition that caused it. That attribution — and not any limit on how
-  many messages there are — is what keeps twenty malformed conditions readable.
+  Every message is attributed to the index the client sent — written exactly as the client
+  wrote it, holes included — so a client maps each one back to the condition that caused it.
+  The key is a string for both accepted payload shapes, so an array payload reports under
+  `"0"` and a query string that sent `filters[007]` reports under `"007"`. That attribution —
+  and not any limit on how many messages there are — is what keeps twenty malformed conditions
+  readable.
 - A sort that is not a string, and a sort naming an undeclared key. The failure lands on `sort`
   and never under `filters`, and it is produced **once** for the whole parameter: the message
   enumerates the allowed keys, so repeating it per key would say the same thing twice.

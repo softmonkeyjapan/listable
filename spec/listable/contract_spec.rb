@@ -163,7 +163,7 @@ RSpec.describe Listable::Contract do
       ]
 
       expect(refusals(filters: payload)).to eq(
-        filters: { 1 => [message(:field_unknown, fields: filterable)] },
+        filters: { "1" => [message(:field_unknown, fields: filterable)] },
       )
     end
 
@@ -177,7 +177,7 @@ RSpec.describe Listable::Contract do
       }
 
       expect(refusals("filters" => payload)).to eq(
-        filters: { 7 => [message(:field_unknown, fields: filterable)] },
+        filters: { "7" => [message(:field_unknown, fields: filterable)] },
       )
     end
 
@@ -188,7 +188,51 @@ RSpec.describe Listable::Contract do
         { field: "id", operator: "~", value: "1" },
       ]
 
-      expect(refusals(filters: payload).fetch(:filters).keys).to eq([0, 2])
+      expect(refusals(filters: payload).fetch(:filters).keys).to eq(%w[0 2])
+    end
+
+    # A client matches a message back to its condition by comparing this key to
+    # the one it wrote, so the key it wrote is the key it reads back. Reading
+    # the index as a number and reporting the number attributes this refusal to
+    # +7+ — an index the client never sent — and the correspondence the
+    # positional format exists for fails on the one payload that needs it.
+    it "reports an index the client did not write in canonical form as it wrote it" do
+      payload = { "007" => { field: "secret", operator: "=", value: "1" } }
+
+      expect(refusals("filters" => payload)).to eq(
+        filters: { "007" => [message(:field_unknown, fields: filterable)] },
+      )
+    end
+
+    # Ordering and reporting read different values: the entries are ordered by
+    # the numeric value of the index, because a payload is a positional list,
+    # and the key handed back is the untouched one.
+    it "reads the refusals in numeric order of the indices the client sent" do
+      bad = { field: "secret", operator: "=", value: "1" }
+      payload = { "10" => bad, "007" => bad, "2" => bad }
+
+      expect(refusals("filters" => payload).fetch(:filters).keys).to eq(%w[2 007 10])
+    end
+
+    # Two keys that differ as strings and agree as numbers keep arrival order,
+    # rather than an order nothing decides.
+    it "keeps arrival order between two indices that agree as numbers" do
+      bad = { field: "secret", operator: "=", value: "1" }
+
+      expect(refusals("filters" => { "7" => bad, "007" => bad }).fetch(:filters).keys)
+        .to eq(%w[7 007])
+    end
+
+    # An in-process caller reading the result hash must not have to know which
+    # of the two accepted shapes its own web layer parsed the request into
+    # before it can look a refusal up.
+    it "reports the same type of key for both accepted payload shapes" do
+      bad = { field: "secret", operator: "=", value: "1" }
+      from_array = refusals(filters: [bad]).fetch(:filters).keys
+      from_hash = refusals("filters" => { "0" => bad }).fetch(:filters).keys
+
+      expect(from_array).to eq(%w[0])
+      expect(from_hash).to eq(from_array)
     end
   end
 
@@ -231,7 +275,7 @@ RSpec.describe Listable::Contract do
     cases.each do |description, (condition, key)|
       it "answers #{description} with that one message and nothing else" do
         expect(refusals(filters: [condition])).to eq(
-          filters: { 0 => [message(key, fields: filterable)] },
+          filters: { "0" => [message(key, fields: filterable)] },
         )
       end
     end
@@ -247,7 +291,7 @@ RSpec.describe Listable::Contract do
 
       expect(refusals(filters: [condition])).to eq(
         filters: {
-          0 => [
+          "0" => [
             message(:field_required),
             message(:operator_invalid),
             message(:value_required),
@@ -264,7 +308,7 @@ RSpec.describe Listable::Contract do
       condition = { field: "secret", operator: "=", value: "x", extra: "x" }
 
       expect(refusals(filters: [condition])).to eq(
-        filters: { 0 => [message(:unknown_key?), message(:field_unknown, fields: filterable)] },
+        filters: { "0" => [message(:unknown_key?), message(:field_unknown, fields: filterable)] },
       )
     end
 
@@ -276,7 +320,7 @@ RSpec.describe Listable::Contract do
       condition = { field: "id", operator: "~", value: %w[1 2] }
 
       expect(refusals(filters: [condition])).to eq(
-        filters: { 0 => [message(:operator_invalid), message(:value_scalar)] },
+        filters: { "0" => [message(:operator_invalid), message(:value_scalar)] },
       )
     end
 
@@ -284,7 +328,7 @@ RSpec.describe Listable::Contract do
     # an object carries none. There is nothing further to say about a string
     # sitting where a condition was expected.
     it "answers an entry that is not an object with the shape message alone" do
-      expect(refusals(filters: ["id=1"])).to eq(filters: { 0 => [message(:hash?)] })
+      expect(refusals(filters: ["id=1"])).to eq(filters: { "0" => [message(:hash?)] })
     end
 
     # Attribution is the property that keeps a payload of malformed conditions
@@ -298,8 +342,8 @@ RSpec.describe Listable::Contract do
 
       expect(refusals(filters: payload)).to eq(
         filters: {
-          0 => [message(:field_required), message(:operator_invalid), message(:value_required)],
-          3 => [message(:field_unknown, fields: filterable)],
+          "0" => [message(:field_required), message(:operator_invalid), message(:value_required)],
+          "3" => [message(:field_unknown, fields: filterable)],
         },
       )
     end
@@ -314,7 +358,7 @@ RSpec.describe Listable::Contract do
         refusals(filters: [{ field: "id", operator: operator, value: %w[1 2] }])
       end
 
-      expect(refused).to all(eq(filters: { 0 => [message(:value_scalar)] }))
+      expect(refused).to all(eq(filters: { "0" => [message(:value_scalar)] }))
     end
 
     it "accepts a list of single values for a list operator" do
@@ -334,13 +378,13 @@ RSpec.describe Listable::Contract do
     it "refuses a list one of whose elements is a container" do
       condition = { field: "id", operator: "in", value: ["1", %w[2]] }
 
-      expect(refusals(filters: [condition])).to eq(filters: { 0 => [message(:value_list)] })
+      expect(refusals(filters: [condition])).to eq(filters: { "0" => [message(:value_list)] })
     end
 
     it "refuses a map for a list operator" do
       condition = { field: "id", operator: "not_in", value: { a: "1" } }
 
-      expect(refusals(filters: [condition])).to eq(filters: { 0 => [message(:value_list)] })
+      expect(refusals(filters: [condition])).to eq(filters: { "0" => [message(:value_list)] })
     end
 
     # A value the client sent is a value, whether or not it is empty; only a
@@ -379,7 +423,7 @@ RSpec.describe Listable::Contract do
 
     it "refuses a padded field the surface does not carry" do
       expect(refusals(filters: [{ field: " secret ", operator: "=", value: "1" }])).to eq(
-        filters: { 0 => [message(:field_unknown, fields: filterable)] },
+        filters: { "0" => [message(:field_unknown, fields: filterable)] },
       )
     end
   end
