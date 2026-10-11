@@ -11,6 +11,26 @@ internal and changes without ceremony or an entry.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions stay in
 the `0.x` range while the public surface is still allowed to move.
 
+## [0.5.0] — 2026-10-11
+
+### Added
+
+- **Custom sorts.** `sorting` takes an optional map of sort key to sort object, the way
+  `filtering` takes custom filters: any object answering `ordering(relation, descending)` and
+  returning one Arel ordering node or an array of them. A listing orders on what no declared
+  column expresses — an aggregate over an associated table — and the sort object owns the whole
+  ordering node, so it decides where `NULL` rows go in each direction.
+
+  The lookup runs before the key is treated as a column and before the declared surface is
+  consulted. The custom term keeps the position the client gave it among its keys, and the
+  primary-key tie-breaker still closes the ordering, including behind a custom sort registered
+  under the primary key's name.
+
+  A key may carry a dot — `next_occurrence.start_at` — and the contract accepts it once the host
+  adds it to `sortable_fields`. A key no custom sort carries and the model does not declare
+  still raises `Listable::UnknownKey`, dotted or not. Calls to `sorting(sort)` without the map
+  behave as before.
+
 ## [0.4.0] — 2026-09-24
 
 ### Breaking
@@ -125,6 +145,7 @@ descending order: `sort=-created_at,name`.
 `operator_required`, `operator_scalar`, `operator_invalid`, `value_required`, `value_scalar`,
 `value_list`, `unknown_key?`, `sort_scalar`, `sort_unknown`.
 
+[0.5.0]: https://github.com/softmonkeyjapan/listable/releases/tag/v0.5.0
 [0.4.0]: https://github.com/softmonkeyjapan/listable/releases/tag/v0.4.0
 [0.3.0]: https://github.com/softmonkeyjapan/listable/releases/tag/v0.3.0
 [0.2.1]: https://github.com/softmonkeyjapan/listable/releases/tag/v0.2.1

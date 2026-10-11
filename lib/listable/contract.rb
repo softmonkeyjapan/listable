@@ -11,8 +11,8 @@ module Listable
   # that does not know the surface cannot guard it, and a default would be a
   # bypass nobody would notice: every request would pass. They are two options
   # rather than one because they are genuinely two lists — a listing may accept
-  # a filter on a field that is not a column, served by a custom filter, and a
-  # field that is not a column cannot be ordered by.
+  # a filter on a field that is not a column, served by a custom filter, and
+  # such a field can be ordered by only when a custom sort serves it too.
   #
   # Both parameters are optional and deliberately untyped. The payload is a
   # hash on the wire and an array from a programmatic caller, and the sort is

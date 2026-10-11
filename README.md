@@ -34,7 +34,7 @@ featureful — it is wrong, quietly, in whichever direction the engine happens t
 Listable is distributed from git and is **never published to a package registry**. Pin a tag:
 
 ```ruby
-gem 'listable', github: 'softmonkeyjapan/listable', tag: 'v0.4.0'
+gem 'listable', github: 'softmonkeyjapan/listable', tag: 'v0.5.0'
 ```
 
 ## Quickstart
@@ -286,6 +286,51 @@ entering the model's whitelist.
 
 The gem wraps no rescue around the call: errors raised inside your filter are yours to handle.
 
+## Custom sorts
+
+`sorting` takes an optional map of sort key to sort object, symmetric to custom filters. The
+contract is again **one method and no inheritance**: any object answering
+`ordering(relation, descending)` and returning one Arel ordering node, or an array of them.
+
+```ruby
+class NextOccurrenceSort
+  def self.ordering(relation, descending)
+    occurrences = Occurrence.arel_table
+    earliest = occurrences
+      .project(occurrences[:start_at].minimum)
+      .where(occurrences[:event_id].eq(relation.arel_table[:id]))
+      .where(occurrences[:end_at].gteq(Time.current))
+    expression = Arel::Nodes::Grouping.new(earliest.ast)
+
+    (descending ? expression.desc : expression.asc).nulls_last
+  end
+end
+
+Event.sorting(params[:sort], "next_occurrence.start_at" => NextOccurrenceSort)
+```
+
+The sort object returns the **ordering node**, not a bare expression: the direction is not all
+an ordering carries. Where `NULL` rows go is yours to decide — PostgreSQL puts them first in a
+descending order unless the node says `NULLS LAST`.
+
+`ordering` is called on every request that names the key, so a `Time.current` inside it is the
+instant of that request: the example orders on the earliest showing not yet over, a running one
+included, and the order moves as showings end.
+
+Everything else stays the gem's:
+
+- The lookup runs **before** the key is treated as a column and before the declared surface is
+  consulted, so a custom sort claims its key whether or not a column of that name exists, and
+  the key never enters the model's whitelist.
+- The custom term keeps **its position** among the client's keys:
+  `sort=name,-next_occurrence.start_at` orders by name first.
+- The primary-key tie-breaker is still appended — even behind a custom sort registered under
+  the primary key's own name, since that sort orders on whatever it chose.
+- A key may carry a dot. A key no custom sort carries and the model does not declare raises
+  `Listable::UnknownKey`, dotted or not.
+
+As with custom filters, no rescue is wrapped around the call.
+
 ## Validating the request
 
 `Listable::Contract` refuses a bad request before a single predicate is built.
@@ -293,13 +338,13 @@ The gem wraps no rescue around the call: errors raised inside your filter are yo
 ```ruby
 result = Listable::Contract.new(
   filterable_fields: Widget.listable_fields + %w[owner],
-  sortable_fields: Widget.listable_fields,
+  sortable_fields: Widget.listable_fields + %w[next_occurrence.start_at],
 ).call(filters: params[:filters], sort: params[:sort])
 
 return render(json: { errors: result.errors.to_h }, status: :unprocessable_entity) if result.failure?
 
 Widget.filtering(Listable::Conditions.new(params[:filters]).to_a, "owner" => OwnerFilter)
-      .sorting(params[:sort])
+      .sorting(params[:sort], "next_occurrence.start_at" => NextOccurrenceSort)
 ```
 
 Both options are **required** and have no default. A contract that does not know the surface
@@ -308,12 +353,14 @@ cannot guard it, and a default would be a bypass nobody would notice: every requ
 ### Why two surfaces
 
 They are two genuinely different lists, and the example above shows why: `owner` is filterable
-because a custom filter serves it, and it is not sortable because it is not a column — there is
-no expression to order by. A listing may filter on something it cannot sort on, and a single
-list could not say so.
+because a custom filter serves it, and it is not sortable because no custom sort serves it and
+it is not a column — there is no expression to order by. `next_occurrence.start_at` is the
+reverse: sortable through a custom sort, filterable through nothing. A listing may filter on
+something it cannot sort on, and a single list could not say so.
 
 The model's own `listable_fields` governs both; the two surfaces diverge at the call site,
-where the host adds what its custom filters serve.
+where the host adds what its custom filters and custom sorts serve. Registering a custom filter
+or a custom sort declares nothing to the contract: a key the host did not add is refused there.
 
 ### What the contract refuses
 
@@ -421,6 +468,8 @@ Committed and versioned:
   reaches the query builder.
 - The custom-filter protocol: any object answering `apply(relation, operator, value)` and
   returning a relation.
+- The custom-sort protocol: any object answering `ordering(relation, descending)` and returning
+  one Arel ordering node or an array of them.
 
 `Listable` is the only top-level constant the gem defines. Everything else — the field
 resolver, the index-key pattern, the casting mechanics — is internal and may change without

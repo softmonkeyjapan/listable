@@ -100,5 +100,13 @@ module Listable
         translates :name
       end
     end
+
+    # A dated occurrence of a widget.
+    #
+    # It includes nothing from the gem: it is the associated table a custom sort
+    # aggregates over, never a listing of its own.
+    class Occurrence < Record
+      self.table_name = "occurrences"
+    end
   end
 end

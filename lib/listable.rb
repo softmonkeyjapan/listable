@@ -101,12 +101,15 @@ module Listable
     #
     # * +sort+ - the sort parameter as the client sent it: keys separated by
     #   commas, a leading +-+ asking for descending order
+    # * +custom_sorts+ - a map of sort key to an object answering
+    #   <tt>ordering(relation, descending)</tt> and returning one Arel ordering
+    #   node or an array of them
     #
     # ==== Returns
     #
     # The ordered relation.
-    def sorting(sort)
-      Sorting.new(all, sort).apply
+    def sorting(sort, custom_sorts = {})
+      Sorting.new(all, sort, custom_sorts).apply
     end
 
     private

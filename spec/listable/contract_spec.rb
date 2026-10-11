@@ -466,4 +466,42 @@ RSpec.describe Listable::Contract do
       )
     end
   end
+
+  describe "a sort key a custom sort serves" do
+    # The surface a host builds when it registers a custom sort: the model's
+    # own keys plus the dotted key the custom sort serves, added at the call
+    # site exactly as a custom filter's field is added to the filterable one.
+    #
+    # ==== Returns
+    #
+    # A contract whose sortable surface carries the custom key.
+    def custom_contract
+      described_class.new(
+        filterable_fields: %w[id name],
+        sortable_fields: %w[id name next_occurrence.start_at],
+      )
+    end
+
+    # A dot is not a separator of the wire format, so a declared dotted key is
+    # read whole and passes in either direction, among the client's other keys.
+    it "accepts the declared dotted key in either direction" do
+      expect(custom_contract.call(sort: "-next_occurrence.start_at").errors.to_h).to be_empty
+      expect(custom_contract.call(sort: "name, next_occurrence.start_at").errors.to_h).to be_empty
+    end
+
+    # Registering a custom sort with the engine declares nothing to the
+    # contract: a key the sortable surface does not carry is refused, dotted
+    # or not, whatever the host registered.
+    it "refuses the dotted key when the sortable surface does not carry it" do
+      expect(refusals(sort: "-next_occurrence.start_at")).to eq(
+        sort: [message(:sort_unknown, fields: sortable)],
+      )
+    end
+
+    it "enumerates the dotted key among the allowed ones when refusing another" do
+      expect(custom_contract.call(sort: "secret").errors.to_h).to eq(
+        sort: [message(:sort_unknown, fields: "id, name, next_occurrence.start_at")],
+      )
+    end
+  end
 end

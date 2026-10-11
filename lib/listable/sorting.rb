@@ -28,9 +28,11 @@ module Listable
     #
     # * +relation+ - the relation to order
     # * +sort+ - the sort parameter as the client sent it
-    def initialize(relation, sort)
+    # * +custom_sorts+ - a map of sort key to an object answering +ordering+
+    def initialize(relation, sort, custom_sorts)
       @relation = relation
       @sort = sort
+      @custom_sorts = custom_sorts.to_h.transform_keys(&:to_s)
     end
 
     # Applies the order this listing must come back in.
@@ -65,6 +67,13 @@ module Listable
     # Whatever the caller passed, usually a string.
     attr_reader :sort
 
+    # The custom sorts this call supplied, keyed by sort key as a string.
+    #
+    # ==== Returns
+    #
+    # A hash of sort key to sort object.
+    attr_reader :custom_sorts
+
     # Builds the full list of orderings the relation is given.
     #
     # A client sort replaces the default order instead of appending to it: a
@@ -78,7 +87,7 @@ module Listable
     def orderings
       return default_orderings if terms.empty?
 
-      terms.map { |key, descending| ordering(key, descending) } + tie_breaker
+      terms.flat_map { |key, descending| ordering(key, descending) } + tie_breaker
     end
 
     # The ordering the primary key is appended with, when it is appended.
@@ -99,13 +108,18 @@ module Listable
     # something a client asks for. A model that does not declare its primary
     # key as listable still gets it appended here.
     #
+    # A term is taken to order on the primary key only when no custom sort
+    # claims it. A custom sort registered under the primary key's name orders
+    # on whatever its host chose, so skipping the tie-breaker on the name alone
+    # would hand the ties of that ordering back to the query plan.
+    #
     # ==== Returns
     #
     # An array holding the primary key's descending ordering, or an empty array
     # when the client already ordered on the primary key and appending it again
     # would only repeat what the order already decides.
     def tie_breaker
-      return [] if terms.any? { |key, _| key == model.primary_key }
+      return [] if terms.any? { |key, _| key == model.primary_key && !custom_sorts.key?(key) }
 
       [primary_key_ordering]
     end
@@ -137,13 +151,26 @@ module Listable
       model.arel_table[model.primary_key].desc
     end
 
-    # Builds the ordering one term asks for.
+    # Builds the orderings one term asks for.
     #
-    # The expression comes from the same resolver a filter's predicate compares
-    # against, so a translated attribute is ordered on the locale extraction its
-    # reader would read rather than on the JSON document the column holds —
-    # ordering on the document would sort the rows by a serialised object and
-    # answer an order that matches nothing the client can see.
+    # The custom-sort lookup runs before the key is treated as a column and
+    # before the declared surface is consulted, the way the custom-filter one
+    # does: it is what lets a listing order on an aggregate over an association
+    # without that key ever entering the model's whitelist, and what lets a
+    # custom sort claim a key even when a column of the same name exists. The
+    # custom sort hands back the ordering node and not a bare expression,
+    # because the direction is not all an ordering carries — where its +NULL+
+    # rows go is the host's decision, and an expression the gem wrapped in
+    # +ASC+ or +DESC+ would leave PostgreSQL's default to decide it. No rescue
+    # is wrapped around the call: errors raised inside a host's sort are the
+    # host's.
+    #
+    # Otherwise the expression comes from the same resolver a filter's
+    # predicate compares against, so a translated attribute is ordered on the
+    # locale extraction its reader would read rather than on the JSON document
+    # the column holds — ordering on the document would sort the rows by a
+    # serialised object and answer an order that matches nothing the client
+    # can see.
     #
     # ==== Parameters
     #
@@ -152,11 +179,14 @@ module Listable
     #
     # ==== Returns
     #
-    # An Arel ordering node.
+    # An array of Arel ordering nodes, in the order they apply.
     def ordering(key, descending)
+      custom = custom_sorts[key]
+      return Array.wrap(custom.ordering(relation, descending)) if custom
+
       expression = resolve(key).expression
 
-      descending ? expression.desc : expression.asc
+      [descending ? expression.desc : expression.asc]
     end
 
     # Resolves one key through the resolver filtering already goes through.

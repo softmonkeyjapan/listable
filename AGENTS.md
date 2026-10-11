@@ -64,6 +64,8 @@ Committed and versioned:
 * `Listable::UnknownKey` — raised when an undeclared sort key reaches the query builder.
 * The custom-filter protocol: any object answering `.apply(relation, operator, value)` and
   returning a relation. One method, no inheritance.
+* The custom-sort protocol: any object answering `.ordering(relation, descending)` and
+  returning one Arel ordering node or an array of them. One method, no inheritance.
 
 `Listable` is the only top-level constant the gem defines.
 

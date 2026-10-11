@@ -21,6 +21,7 @@ module Listable
           create_widgets(connection)
           create_gadgets(connection)
           create_documents(connection)
+          create_occurrences(connection)
         end
 
         nil
@@ -104,6 +105,30 @@ module Listable
         connection.create_table(:documents, force: :cascade) do |t|
           t.jsonb :name, default: {}, null: false
           t.datetime :created_at, null: false
+        end
+
+        nil
+      end
+
+      # Creates the table a widget's dated occurrences live in.
+      #
+      # A custom sort exists to order by what no declared column can express,
+      # and the case it is built for is an aggregate over an associated table —
+      # the earliest occurrence of each widget. The table gives that aggregate
+      # real rows to read, and a widget with none of them is the +NULL+ the
+      # ordering must push to the end in both directions.
+      #
+      # ==== Parameters
+      #
+      # * +connection+ - the connection to build the table through
+      #
+      # ==== Returns
+      #
+      # +nil+.
+      def create_occurrences(connection)
+        connection.create_table(:occurrences, force: :cascade) do |t|
+          t.bigint :widget_id, null: false
+          t.datetime :start_at, null: false
         end
 
         nil

@@ -77,3 +77,13 @@ RSpec.describe Listable::Harness::Document do
     )
   end
 end
+
+RSpec.describe Listable::Harness::Occurrence do
+  it "resolves each column to its expected type" do
+    expect(described_class.columns_hash.transform_values(&:type)).to eq(
+      "id" => :integer,
+      "widget_id" => :integer,
+      "start_at" => :datetime,
+    )
+  end
+end
