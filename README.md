@@ -34,7 +34,7 @@ featureful — it is wrong, quietly, in whichever direction the engine happens t
 Listable is distributed from git and is **never published to a package registry**. Pin a tag:
 
 ```ruby
-gem 'listable', github: 'softmonkeyjapan/listable', tag: 'v0.6.0'
+gem 'listable', github: 'softmonkeyjapan/listable', tag: 'v0.7.0'
 ```
 
 ## Quickstart
@@ -407,6 +407,18 @@ filters' fields, the sortable one from `listable_fields` and the custom sorts' k
 the contract the custom filters so it can ask their refusals. `apply` normalises the payload,
 filters and sorts the relation it is handed, which is only ever narrowed. A listing two
 endpoints share is one definition held where both can reach it; pagination stays the caller's.
+
+A listing that should not fall back on the newest-first default order declares its own,
+in the request's sort format, and `apply` uses it whenever the request names no sort or a
+blank one:
+
+```ruby
+WIDGETS = Listable::Definition.new(Widget, sorts: { "next_occurrence.start_at" => NextOccurrenceSort },
+                                           default_sort: "next_occurrence.start_at")
+```
+
+The default goes through the engine like any client sort, so it must be on the sortable
+surface; the primary key still breaks its ties.
 
 ### Why two surfaces
 

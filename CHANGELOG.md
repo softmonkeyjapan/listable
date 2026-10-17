@@ -11,6 +11,14 @@ internal and changes without ceremony or an entry.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions stay in
 the `0.x` range while the public surface is still allowed to move.
 
+## [0.7.0] — 2026-10-17
+
+### Added
+
+- **A listing declares its default sort.** `Listable::Definition` takes an optional
+  `default_sort`, in the request's own sort format, and `apply` orders by it whenever the request
+  names no sort or a blank one. A definition declaring none keeps the gem's default order.
+
 ## [0.6.0] — 2026-10-17
 
 ### Added

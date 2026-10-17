@@ -132,4 +132,42 @@ RSpec.describe Listable::Definition do
       expect(listing.map(&:name)).to eq(%w[Gasket Spindle])
     end
   end
+
+  describe "a default sort" do
+    # The listing under test, ordered on the custom sort when the request
+    # names no order. Descending on +weight+ is ascending on the quantity,
+    # the one order of the three widgets the gem's own default order — the
+    # newest first — does not produce.
+    #
+    # ==== Returns
+    #
+    # A definition carrying one custom sort and a default sort on it.
+    def defaulted
+      described_class.new(model, sorts: { weight: weight_sort }, default_sort: "-weight")
+    end
+
+    it "orders a request naming no sort by the default" do
+      listing = defaulted.apply(model.all, filters: nil, sort: nil)
+
+      expect(listing.map(&:name)).to eq(%w[Spindle Gasket bolt])
+    end
+
+    it "orders a request carrying a blank sort by the default" do
+      listing = defaulted.apply(model.all, filters: nil, sort: "")
+
+      expect(listing.map(&:name)).to eq(%w[Spindle Gasket bolt])
+    end
+
+    it "gives way to the sort the request names" do
+      listing = defaulted.apply(model.all, filters: nil, sort: "-created_at")
+
+      expect(listing.map(&:name)).to eq(%w[bolt Gasket Spindle])
+    end
+
+    it "leaves the gem's own default order to a definition declaring none" do
+      listing = definition.apply(model.all, filters: nil, sort: nil)
+
+      expect(listing.map(&:name)).to eq(%w[bolt Gasket Spindle])
+    end
+  end
 end
