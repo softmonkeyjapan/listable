@@ -34,7 +34,7 @@ featureful — it is wrong, quietly, in whichever direction the engine happens t
 Listable is distributed from git and is **never published to a package registry**. Pin a tag:
 
 ```ruby
-gem 'listable', github: 'softmonkeyjapan/listable', tag: 'v0.5.0'
+gem 'listable', github: 'softmonkeyjapan/listable', tag: 'v0.6.0'
 ```
 
 ## Quickstart
@@ -383,6 +383,31 @@ cannot guard it, and a default would be a bypass nobody would notice: every requ
 A third, `custom_filters`, is optional: it is how the contract reaches the filters that can
 refuse a condition (see [Refusing a condition](#refusing-a-condition)).
 
+### Declaring a listing once
+
+A listing serving custom filters names each of them three times above: in the filterable
+surface, in `custom_filters`, and in the call to `filtering`. `Listable::Definition` takes the
+model and the two maps once and derives the rest:
+
+```ruby
+WIDGETS = Listable::Definition.new(
+  Widget,
+  filters: { "owner" => OwnerFilter },
+  sorts: { "next_occurrence.start_at" => NextOccurrenceSort },
+)
+
+result = WIDGETS.contract.call(filters: params[:filters], sort: params[:sort])
+return render(json: { errors: result.errors.to_h }, status: :unprocessable_entity) if result.failure?
+
+WIDGETS.apply(Widget.where(account: current_account), filters: params[:filters], sort: params[:sort])
+```
+
+`contract` builds the filterable surface from the model's `listable_fields` and the custom
+filters' fields, the sortable one from `listable_fields` and the custom sorts' keys, and hands
+the contract the custom filters so it can ask their refusals. `apply` normalises the payload,
+filters and sorts the relation it is handed, which is only ever narrowed. A listing two
+endpoints share is one definition held where both can reach it; pagination stays the caller's.
+
 ### Why two surfaces
 
 They are two genuinely different lists, and the example above shows why: `owner` is filterable
@@ -507,6 +532,7 @@ Committed and versioned:
 - `Listable::OPERATORS` — the operator vocabulary.
 - `Listable::Conditions` — normalises a raw filters payload into a positional list.
 - `Listable::Contract` — the dry-validation contract guarding listing query parameters.
+- `Listable::Definition` — one listing declared once: its contract and its filtering and sorting.
 - `Listable::UnknownField`, `Listable::UnknownKey` — raised when an undeclared field or sort key
   reaches the query builder.
 - The custom-filter protocol: any object answering `apply(relation, operator, value)` and

@@ -16,6 +16,7 @@ require_relative "listable/field_resolver"
 require_relative "listable/filtering"
 require_relative "listable/sorting"
 require_relative "listable/contract"
+require_relative "listable/definition"
 
 # Filtering and sorting engine for PostgreSQL-backed listing endpoints.
 #

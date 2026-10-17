@@ -60,6 +60,7 @@ Committed and versioned:
 * `Listable::OPERATORS` — the operator vocabulary.
 * `Listable::Conditions` — normalises a raw filters payload into a positional list.
 * `Listable::Contract` — the dry-validation contract guarding listing query parameters.
+* `Listable::Definition` — one listing declared once: its contract, its filtering and sorting.
 * `Listable::UnknownField` — raised when an undeclared field reaches the query builder.
 * `Listable::UnknownKey` — raised when an undeclared sort key reaches the query builder.
 * The custom-filter protocol: any object answering `.apply(relation, operator, value)` and

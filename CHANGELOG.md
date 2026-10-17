@@ -11,7 +11,7 @@ internal and changes without ceremony or an entry.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions stay in
 the `0.x` range while the public surface is still allowed to move.
 
-## [Unreleased]
+## [0.6.0] — 2026-10-17
 
 ### Added
 
@@ -21,6 +21,10 @@ the `0.x` range while the public surface is still allowed to move.
   checks have passed. The message key the filter answers is attributed to the index the client
   sent and looked up under `listable.errors`, in the host's locale files. A filter answering only
   `apply` is asked nothing, and a contract built without the map behaves as before.
+- **`Listable::Definition` declares a listing once.** It takes the model, the custom filters and
+  the custom sorts, and answers the contract — both surfaces derived from the model's declared
+  fields and the two maps, the custom filters handed over for their refusals — and `apply`,
+  which normalises the filters payload and filters and sorts a relation. Pagination stays out.
 
 ## [0.5.0] — 2026-10-11
 
@@ -156,6 +160,7 @@ descending order: `sort=-created_at,name`.
 `operator_required`, `operator_scalar`, `operator_invalid`, `value_required`, `value_scalar`,
 `value_list`, `unknown_key?`, `sort_scalar`, `sort_unknown`.
 
+[0.6.0]: https://github.com/softmonkeyjapan/listable/releases/tag/v0.6.0
 [0.5.0]: https://github.com/softmonkeyjapan/listable/releases/tag/v0.5.0
 [0.4.0]: https://github.com/softmonkeyjapan/listable/releases/tag/v0.4.0
 [0.3.0]: https://github.com/softmonkeyjapan/listable/releases/tag/v0.3.0

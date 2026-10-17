@@ -7,5 +7,5 @@ module Listable
   # +require_relative+, without loading +lib/listable.rb+ and, through it,
   # Active Record: a gemspec must be evaluable before +bundle install+ has
   # resolved a single dependency.
-  VERSION = "0.5.0"
+  VERSION = "0.6.0"
 end
