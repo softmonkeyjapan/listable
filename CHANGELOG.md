@@ -11,6 +11,17 @@ internal and changes without ceremony or an entry.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions stay in
 the `0.x` range while the public surface is still allowed to move.
 
+## [Unreleased]
+
+### Added
+
+- **A custom filter can refuse a condition.** `Listable::Contract` takes an optional
+  `custom_filters` map, the one handed to `filtering`, and asks every filter answering
+  `refusal(operator, value)` about each condition naming its field, once the contract's own
+  checks have passed. The message key the filter answers is attributed to the index the client
+  sent and looked up under `listable.errors`, in the host's locale files. A filter answering only
+  `apply` is asked nothing, and a contract built without the map behaves as before.
+
 ## [0.5.0] — 2026-10-11
 
 ### Added

@@ -63,7 +63,8 @@ Committed and versioned:
 * `Listable::UnknownField` — raised when an undeclared field reaches the query builder.
 * `Listable::UnknownKey` — raised when an undeclared sort key reaches the query builder.
 * The custom-filter protocol: any object answering `.apply(relation, operator, value)` and
-  returning a relation. One method, no inheritance.
+  returning a relation, and optionally `.refusal(operator, value)` answering a message key or
+  `nil`, which `Listable::Contract` asks when it is handed the filter. No inheritance.
 * The custom-sort protocol: any object answering `.ordering(relation, descending)` and
   returning one Arel ordering node or an array of them. One method, no inheritance.
 

@@ -82,6 +82,20 @@ module Listable
     # The field names this listing accepts an order on.
     option :sortable_fields
 
+    # The custom filters of the listing, by the field they serve.
+    #
+    # Optional, and read for one thing: a custom filter answering
+    # +refusal(operator, value)+ is asked about every condition naming its
+    # field. The engine calls a custom filter only once this contract has
+    # passed, at a point where the filter can narrow the listing but no longer
+    # refuse the request, so a value the filter cannot read would otherwise
+    # reach it with no way back to a 422. A filter answering only +apply+ is
+    # asked nothing.
+    #
+    # Its keys are read as strings once, here, rather than per condition.
+    option :custom_filters, ->(filters) { filters.to_h.transform_keys(&:to_s) },
+           default: proc { {} }
+
     # Both parameters are declared and left untyped on purpose: the two shapes
     # a payload arrives in are not one type, and a sort that is not a string is
     # refused by its rule with a message rather than coerced by the schema in
@@ -256,8 +270,45 @@ module Listable
     # them.
     def condition_refusals(payload)
       entries(payload).flat_map do |index, entry|
-        ConditionCheck.new(entry, filterable_fields).refusals.map { |refusal| [index, refusal] }
+        refusals = ConditionCheck.new(entry, filterable_fields).refusals
+        refusals = custom_refusals(entry) if refusals.empty?
+
+        refusals.map { |refusal| [index, refusal] }
       end
+    end
+
+    # Asks the custom filter a condition names what is wrong with it.
+    #
+    # Asked only of a condition the contract's own checks passed: a condition
+    # whose field, operator or value is malformed has nothing a filter could
+    # read, and its message would only restate the one already given. The
+    # field and the operator go stripped, the way every other check reads
+    # them; the value goes as the client sent it, since what it means is the
+    # filter's to decide.
+    #
+    # The message key the filter answers belongs to the host and is looked up
+    # under the gem's own namespace, +listable.errors+, where the host's
+    # locale files already override the gem's messages. It is outside
+    # MESSAGE_KEYS by nature: the gem cannot enumerate what a host's filters
+    # refuse. It is read as a symbol whatever the filter answered, because
+    # dry-validation takes a string handed to +failure+ for the message itself
+    # and would serve the client the bare key.
+    #
+    # ==== Parameters
+    #
+    # * +entry+ - one condition, known to be a hash of the three keys
+    #
+    # ==== Returns
+    #
+    # An array holding one <tt>[message key, tokens]</tt> pair, or an empty
+    # array when no custom filter serves the field or the filter accepts it.
+    def custom_refusals(entry)
+      parts = entry.symbolize_keys
+      filter = custom_filters[parts[:field].to_s.strip]
+      return [] unless filter.respond_to?(:refusal)
+
+      refusal = filter.refusal(parts[:operator].to_s.strip, parts[:value])
+      refusal ? [[refusal.to_sym, {}]] : []
     end
 
     # Reads the sort keys the client named and keeps the undeclared ones.

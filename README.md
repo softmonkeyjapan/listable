@@ -286,6 +286,37 @@ entering the model's whitelist.
 
 The gem wraps no rescue around the call: errors raised inside your filter are yours to handle.
 
+### Refusing a condition
+
+`apply` runs after the contract has accepted the request, and a filter can only narrow there: it
+has no way left to answer a 422. A value it cannot read — a word where it expects a date, an
+operator it does not serve — is refused by the contract instead, which asks the filter. A filter
+that answers `refusal(operator, value)` as well is asked about every condition naming its field,
+once the contract's own checks have passed; it answers a message key, or `nil` when it serves
+the condition:
+
+```ruby
+class OwnerFilter
+  def self.refusal(operator, value)
+    return :owner_operator unless %w[= !=].include?(operator)
+    return :owner_value unless value.to_s.include?("@")
+
+    nil
+  end
+end
+
+Listable::Contract.new(
+  filterable_fields: Widget.listable_fields + %w[owner],
+  sortable_fields: Widget.listable_fields,
+  custom_filters: { "owner" => OwnerFilter },
+)
+```
+
+The field and the operator reach `refusal` stripped, the value as the client sent it. The key is
+looked up under `listable.errors`, so its messages go in your own locale files beside any
+message of the gem you override — see [Messages](#messages). `refusal` is optional: a filter
+answering only `apply` is asked nothing, and `filtering` never calls `refusal`.
+
 ## Custom sorts
 
 `sorting` takes an optional map of sort key to sort object, symmetric to custom filters. The
@@ -349,6 +380,8 @@ Widget.filtering(Listable::Conditions.new(params[:filters]).to_a, "owner" => Own
 
 Both options are **required** and have no default. A contract that does not know the surface
 cannot guard it, and a default would be a bypass nobody would notice: every request would pass.
+A third, `custom_filters`, is optional: it is how the contract reaches the filters that can
+refuse a condition (see [Refusing a condition](#refusing-a-condition)).
 
 ### Why two surfaces
 
@@ -375,6 +408,8 @@ or a custom sort declares nothing to the contract: a key the host did not add is
   is an object is told it is an object, not also told that object is not a declared field.
 - An entry that is not an object at all answers that alone — there is nothing further to say
   about a string sitting where a condition was expected.
+- A condition its custom filter refuses, once the checks above found nothing wrong with it: the
+  filter's message, alone, under the condition's index.
 
   Every message is attributed to the index the client sent — written exactly as the client
   wrote it, holes included — so a client maps each one back to the condition that caused it.
@@ -455,6 +490,14 @@ shape.
 Three keys interpolate: `too_many` takes `%{cap}`, and `field_unknown` and `sort_unknown` take
 `%{fields}`.
 
+### Messages of your own filters
+
+A key a custom filter answers from `refusal` is read from the same place, `listable.errors`, and
+the gem ships no message for it: the file that overrides a message of the gem is the file that
+carries yours, in every locale you serve. Prefix each key with the field its filter serves —
+`owner_value`, not `value` — so that two filters, or a filter and the gem, cannot claim the
+same key.
+
 ## Public surface
 
 Committed and versioned:
@@ -467,7 +510,8 @@ Committed and versioned:
 - `Listable::UnknownField`, `Listable::UnknownKey` — raised when an undeclared field or sort key
   reaches the query builder.
 - The custom-filter protocol: any object answering `apply(relation, operator, value)` and
-  returning a relation.
+  returning a relation, and optionally `refusal(operator, value)` answering a message key or
+  `nil`, which `Listable::Contract` asks when it is handed the filter.
 - The custom-sort protocol: any object answering `ordering(relation, descending)` and returning
   one Arel ordering node or an array of them.
 

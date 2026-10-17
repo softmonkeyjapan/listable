@@ -504,4 +504,145 @@ RSpec.describe Listable::Contract do
       )
     end
   end
+
+  describe "a condition a custom filter refuses" do
+    # A custom filter that serves +owner+ with one operator and refuses the
+    # rest, the way a host's filter refuses what it cannot narrow on.
+    let(:owner_filter) do
+      Class.new do
+        # Narrows nothing: the contract never calls it.
+        #
+        # ==== Parameters
+        #
+        # * +relation+ - the relation as the previous conditions left it
+        # * +_operator+ - the operator the condition named
+        # * +_value+ - the value the condition carried
+        #
+        # ==== Returns
+        #
+        # The relation, unchanged.
+        def self.apply(relation, _operator, _value)
+          relation
+        end
+
+        # Names what is wrong with a condition on +owner+.
+        #
+        # ==== Parameters
+        #
+        # * +operator+ - the operator the condition named
+        # * +value+ - the value the condition carried
+        #
+        # ==== Returns
+        #
+        # A message key, or +nil+ when the condition is one this filter serves.
+        def self.refusal(operator, value)
+          return :owner_operator unless operator == "="
+          return :owner_value unless value.to_s.match?(/\A\d+\z/)
+
+          nil
+        end
+      end
+    end
+
+    # A contract that knows the custom filter serving +owner+.
+    #
+    # ==== Returns
+    #
+    # A contract bound to the suite's surfaces and to that filter.
+    def custom_contract
+      described_class.new(
+        filterable_fields: %w[id name quantity owner],
+        sortable_fields: %w[id name],
+        custom_filters: { "owner" => owner_filter },
+      )
+    end
+
+    # The two messages the host ships for its filter, under the namespace the
+    # gem's own messages live in.
+    # Blanked afterwards so that the host's messages do not outlive the
+    # example and answer a key some later example expects to be missing. A
+    # reload would not do: it also drops the gem's own messages, which the
+    # contract stores once for the whole run.
+    around do |example|
+      messages = { owner_operator: "owner only takes =", owner_value: "owner takes a number" }
+      I18n.backend.store_translations(I18n.locale, listable: { errors: messages })
+      example.run
+    ensure
+      blanks = messages.transform_values { nil }
+      I18n.backend.store_translations(I18n.locale, listable: { errors: blanks })
+    end
+
+    it "attributes the refusal of the filter to the index the client sent" do
+      condition = { field: "owner", operator: "in", value: "1" }
+      result = custom_contract.call(filters: { "3" => condition })
+
+      expect(result.errors.to_h).to eq(filters: { "3" => ["owner only takes ="] })
+    end
+
+    it "accepts a condition the filter serves" do
+      result = custom_contract.call(filters: [{ field: "owner", operator: "=", value: "12" }])
+
+      expect(result.errors.to_h).to be_empty
+    end
+
+    it "reads the field and the operator stripped, as the rest of the contract does" do
+      condition = { field: " owner ", operator: " = ", value: "twelve" }
+      result = custom_contract.call(filters: [condition])
+
+      expect(result.errors.to_h).to eq(filters: { "0" => ["owner takes a number"] })
+    end
+
+    # A condition whose shape is already wrong has nothing a filter could read,
+    # and a second message would only restate the first.
+    it "leaves a condition the contract already refused to that refusal alone" do
+      result = custom_contract.call(filters: [{ field: "owner", operator: "between", value: "x" }])
+
+      expect(result.errors.to_h).to eq(filters: { "0" => [message(:operator_invalid)] })
+    end
+
+    # dry-validation reads a string handed to failure as the message itself.
+    it "reads a key the filter answers as a string as a key all the same" do
+      stringly = Class.new do
+        # Answers its refusal key as a string.
+        #
+        # ==== Parameters
+        #
+        # * +_operator+ - the operator the condition named
+        # * +_value+ - the value the condition carried
+        #
+        # ==== Returns
+        #
+        # A message key, as a string.
+        def self.refusal(_operator, _value)
+          "owner_value"
+        end
+      end
+      contract = described_class.new(
+        filterable_fields: %w[owner],
+        sortable_fields: %w[id],
+        custom_filters: { owner: stringly },
+      )
+      condition = { field: "owner", operator: "=", value: "x" }
+
+      expect(contract.call(filters: [condition]).errors.to_h)
+        .to eq(filters: { "0" => ["owner takes a number"] })
+    end
+
+    it "asks nothing of a custom filter that carries no refusal" do
+      contract = described_class.new(
+        filterable_fields: %w[owner],
+        sortable_fields: %w[id],
+        custom_filters: { "owner" => Class.new },
+      )
+      condition = { field: "owner", operator: "in", value: "1" }
+
+      expect(contract.call(filters: [condition]).errors.to_h).to be_empty
+    end
+
+    it "asks nothing when no custom filter is registered" do
+      result = refusals(filters: [{ field: "owner", operator: "in", value: "1" }])
+
+      expect(result).to be_empty
+    end
+  end
 end
