@@ -92,6 +92,7 @@ module Listable
         expression: model.arel_table[field],
         textual: textual?(column),
         cast_type: column.type,
+        attribute_type: model.type_for_attribute(field),
       )
     end
 
@@ -150,7 +151,9 @@ module Listable
     # nothing a client would ever type. A translated attribute is always
     # textual because its extraction yields text by construction, and it
     # carries no cast type because the value a client sends is compared against
-    # that text and not against the JSON storage.
+    # that text and not against the JSON storage. Its attribute type is the bare
+    # value type for the same reason: the comparison is quoted as text, never
+    # serialised through the attribute, so no value is too large for it.
     #
     # ==== Parameters
     #
@@ -162,7 +165,12 @@ module Listable
     def translated_field(field)
       backend = model.mobility_backend_class(field)
 
-      Field.new(expression: extraction(backend, field), textual: true, cast_type: nil)
+      Field.new(
+        expression: extraction(backend, field),
+        textual: true,
+        cast_type: nil,
+        attribute_type: ActiveModel::Type::Value.new,
+      )
     end
 
     # Builds the expression a reader of the attribute would read.

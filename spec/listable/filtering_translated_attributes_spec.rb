@@ -54,6 +54,16 @@ RSpec.describe Listable, ".filtering", :translated do
     expect(ids_in(:ja, "=", "スピンドル")).to eq([spindle.id])
   end
 
+  # The extraction yields text, so a number no integer column could hold is an
+  # ordinary string here and must not be read as out of range.
+  it "compares a very large number as text" do
+    numbered = model.create!
+    Listable::Harness::Translations.with_locale(:en) { numbered.update!(name: "99999999999") }
+
+    expect(ids_in(:en, "=", "99999999999")).to eq([numbered.id])
+    expect(ids_in(:en, "in", "99999999999")).to eq([numbered.id])
+  end
+
   # The chain is the backend's own, so a row translated only in the fallback
   # locale is found by a client reading in the locale that falls back to it —
   # exactly as the reader would have shown it that value.

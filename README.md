@@ -34,7 +34,7 @@ featureful — it is wrong, quietly, in whichever direction the engine happens t
 Listable is distributed from git and is **never published to a package registry**. Pin a tag:
 
 ```ruby
-gem 'listable', github: 'softmonkeyjapan/listable', tag: 'v0.7.0'
+gem 'listable', github: 'softmonkeyjapan/listable', tag: 'v0.7.1'
 ```
 
 ## Quickstart
@@ -224,6 +224,11 @@ can document its own API from it.
 - Every other operator casts its value according to the column's type — date, datetime and
   timestamp are parsed, integer and bigint coerced, decimal and float converted, boolean read
   through Active Record's boolean type. An unknown column type leaves the value untouched.
+- No row holds a value outside the range of the column's type, and that range is the type's
+  own, so a `bigint` column accepts what it can hold. `in` and `not_in` leave the element out of
+  the list: an `in` left with nothing selects nobody, a `not_in` left with nothing excludes nobody.
+  `=` and `is` select nobody and `!=` excludes nobody. `>` and `>=` above the range, or `<` and
+  `<=` below it, select nobody; in the other direction they select every row holding a value.
 
 ### What the engine drops in silence
 

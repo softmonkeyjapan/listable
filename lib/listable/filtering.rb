@@ -177,6 +177,10 @@ module Listable
     # would turn a genuine bug in predicate building into an unfiltered listing
     # nobody notices.
     #
+    # A cast value the column cannot hold never reaches the expression: it would
+    # raise when the predicate turns into SQL, and a select would swallow that
+    # raise into an empty result, whatever the operator meant.
+    #
     # ==== Parameters
     #
     # * +field+ - the resolved Field
@@ -188,10 +192,58 @@ module Listable
     # An Arel predicate, or +nil+ when the value cannot be cast.
     def comparison_predicate(field, operator, value)
       cast = Casting.call(value, field.cast_type)
+      return out_of_range_predicate(field, operator, cast) unless field.holds?(cast)
 
       field.expression.public_send(COMPARISONS.fetch(operator), cast)
     rescue Casting::Failure
       nil
+    end
+
+    # Builds the answer of a comparison against a value the column cannot hold.
+    #
+    # Each branch is the answer the operator's meaning calls for, and none of
+    # them drops the condition: dropping would answer an unfiltered listing to
+    # <tt>= 99999999999</tt>. A +!=+ keeps the rows holding NULL, since it
+    # excludes nobody, while an order comparison every held value satisfies
+    # reads +IS NOT NULL+, which is what comparing against the column's bound
+    # would select. No bound is computed: the range contains zero, so the
+    # value's sign says which side of it the value fell on.
+    #
+    # ==== Parameters
+    #
+    # * +field+ - the resolved Field
+    # * +operator+ - one of the comparison operators
+    # * +cast+ - the cast value, known to be outside the column's range
+    #
+    # ==== Returns
+    #
+    # An Arel predicate.
+    def out_of_range_predicate(field, operator, cast)
+      case operator
+      when "=" then no_row_predicate(field)
+      when "!=" then field.expression.not_in([])
+      else
+        satisfiable = operator.start_with?(">") != cast.positive?
+
+        satisfiable ? field.expression.not_eq(nil) : no_row_predicate(field)
+      end
+    end
+
+    # Builds the predicate no row satisfies.
+    #
+    # It is an empty list because that is how Arel spells an always-false test
+    # on any expression, and an empty +not_in+ is its always-true counterpart.
+    # No value is compared, so nothing is left to raise on the way to SQL.
+    #
+    # ==== Parameters
+    #
+    # * +field+ - the resolved Field
+    #
+    # ==== Returns
+    #
+    # An Arel predicate rendering as an always-false test.
+    def no_row_predicate(field)
+      field.expression.in([])
     end
 
     # Builds the predicate of a list operator.
@@ -202,6 +254,12 @@ module Listable
     # identifiers rather than one identifier and one space-padded miss. The
     # elements are not cast: Arel quotes them through the attribute's own type
     # on the way to the database.
+    #
+    # An element the column cannot hold is left out, since no row holds it and
+    # that quoting would raise. The list may come out empty and still reaches
+    # Arel: an empty +in+ selects nobody and an empty +not_in+ excludes nobody,
+    # whereas dropping the condition would answer an unfiltered listing to an
+    # +in+ that asked for rows no column can hold.
     #
     # ==== Parameters
     #
@@ -214,8 +272,9 @@ module Listable
     # An Arel predicate.
     def list_predicate(field, operator, value)
       list = value.is_a?(Array) ? value : value.to_s.split(",").map(&:strip)
+      held = list.select { |element| field.holds?(element) }
 
-      operator == "in" ? field.expression.in(list) : field.expression.not_in(list)
+      operator == "in" ? field.expression.in(held) : field.expression.not_in(held)
     end
 
     # Builds the predicate of a pattern operator.
@@ -254,7 +313,8 @@ module Listable
     # condition whose whole purpose is to ask about the absence of a value.
     # Anything outside the three words falls back to plain equality, so the
     # operator stays usable on a field whose vocabulary the client knows better
-    # than the gem does.
+    # than the gem does. That equality meets a value the column cannot hold the
+    # way +=+ does: it selects nobody rather than raising on the way to SQL.
     #
     # ==== Parameters
     #
@@ -266,8 +326,9 @@ module Listable
     # An Arel predicate.
     def word_predicate(field, value)
       word = value.to_s.strip.downcase
+      return field.expression.eq(WORDS.fetch(word)) if WORDS.key?(word)
 
-      field.expression.eq(WORDS.key?(word) ? WORDS.fetch(word) : value)
+      field.holds?(value) ? field.expression.eq(value) : no_row_predicate(field)
     end
 
     # The resolver every field of this narrowing goes through.

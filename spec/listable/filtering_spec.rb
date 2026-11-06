@@ -202,6 +202,153 @@ RSpec.describe Listable, ".filtering" do
     end
   end
 
+  # Active Record answers an empty result when a select fails to serialise a
+  # value, so a raise is not the only symptom to pin: the same defect loses the
+  # in-range elements of a list and empties a +!=+ with no error at all. Every
+  # example asserts on the rows, and the last group asserts on the SQL, which
+  # is where the failure stays loud for +to_sql+, +update_all+ and +delete_all+.
+  describe "a value outside the column's range" do
+    let(:above) { "99999999999" }
+    let(:below) { "-99999999999" }
+
+    before { model.create!(name: "hollow", quantity: nil) }
+
+    describe "the list operators" do
+      it "leaves an out-of-range element out of an in" do
+        expect(names_for("quantity", "in", "3,#{above}")).to eq(["Spindle"])
+      end
+
+      it "leaves an out-of-range integer out of a real array" do
+        expect(names_for("quantity", "in", [3, above.to_i])).to eq(["Spindle"])
+      end
+
+      it "selects nobody when an in has only out-of-range elements" do
+        expect(names_for("quantity", "in", "#{above},#{below}")).to eq([])
+      end
+
+      it "leaves an out-of-range element out of a not_in" do
+        expect(names_for("quantity", "not_in", "3,#{above}")).to contain_exactly("Gasket", "bolt")
+      end
+
+      it "excludes nobody when a not_in has only out-of-range elements" do
+        expect(names_for("quantity", "not_in", above))
+          .to contain_exactly("Spindle", "Gasket", "bolt", "hollow")
+      end
+
+      it "keeps a non-numeric element in the list, where it matches nothing" do
+        expect(names_for("quantity", "in", "abc,3")).to eq(["Spindle"])
+      end
+    end
+
+    describe "the equality operators" do
+      it "selects nobody on =" do
+        expect(names_for("quantity", "=", above)).to eq([])
+      end
+
+      it "excludes nobody on !=" do
+        expect(names_for("quantity", "!=", above))
+          .to contain_exactly("Spindle", "Gasket", "bolt", "hollow")
+      end
+
+      it "selects nobody on is" do
+        expect(names_for("quantity", "is", above)).to eq([])
+      end
+
+      it "still reads null on is" do
+        expect(names_for("quantity", "is", "null")).to eq(["hollow"])
+      end
+    end
+
+    # A NULL row holds no value to compare: the column's bound would not select
+    # it, so neither does a comparison every held value satisfies.
+    describe "the order comparisons" do
+      it "selects nobody above a value over the bound" do
+        expect(names_for("quantity", ">", above)).to eq([])
+        expect(names_for("quantity", ">=", above)).to eq([])
+      end
+
+      it "selects every held value below a value over the bound" do
+        expect(names_for("quantity", "<", above)).to contain_exactly("Spindle", "Gasket", "bolt")
+        expect(names_for("quantity", "<=", above)).to contain_exactly("Spindle", "Gasket", "bolt")
+      end
+
+      it "selects every held value above a value under the bound" do
+        expect(names_for("quantity", ">", below)).to contain_exactly("Spindle", "Gasket", "bolt")
+        expect(names_for("quantity", ">=", below)).to contain_exactly("Spindle", "Gasket", "bolt")
+      end
+
+      it "selects nobody below a value under the bound" do
+        expect(names_for("quantity", "<", below)).to eq([])
+        expect(names_for("quantity", "<=", below)).to eq([])
+      end
+    end
+
+    describe "the edges of the range" do
+      before do
+        model.create!(name: "top", quantity: 2_147_483_647)
+        model.create!(name: "floor", quantity: -2_147_483_648)
+      end
+
+      it "matches the highest value the column holds" do
+        expect(names_for("quantity", "=", "2147483647")).to eq(["top"])
+      end
+
+      it "matches the lowest value the column holds" do
+        expect(names_for("quantity", "in", "-2147483648")).to eq(["floor"])
+      end
+
+      it "reads the first value past the highest as out of range" do
+        expect(names_for("quantity", "=", "2147483648")).to eq([])
+        expect(names_for("quantity", "<", "2147483648")).to include("top", "floor")
+      end
+
+      it "reads the first value past the lowest as out of range" do
+        expect(names_for("quantity", "=", "-2147483649")).to eq([])
+        expect(names_for("quantity", ">", "-2147483649")).to include("top", "floor")
+      end
+    end
+
+    describe "a bigint column" do
+      it "accepts a value above the range of a 4-byte column" do
+        expect(names_for("reference", "in", "10000000001,99999999999")).to eq(["Spindle"])
+        expect(names_for("reference", "=", "10000000002")).to eq(["Gasket"])
+      end
+
+      it "reads its own range rather than a constant" do
+        beyond = (2**63).to_s
+
+        expect(names_for("reference", "in", "10000000001,#{beyond}")).to eq(["Spindle"])
+        expect(names_for("reference", "=", beyond)).to eq([])
+        expect(names_for("reference", "<", beyond)).to contain_exactly("Spindle", "Gasket", "bolt")
+      end
+    end
+
+    it "leaves the other conditions applied" do
+      conditions = [
+        { field: "quantity", operator: "!=", value: above },
+        { field: "name", operator: "=", value: "Gasket" },
+      ]
+
+      expect(model.filtering(conditions).map(&:name)).to eq(["Gasket"])
+    end
+
+    describe "the SQL it builds" do
+      %w[= != > >= < <= is in not_in].each do |operator|
+        it "serialises #{operator} without raising" do
+          conditions = [{ field: "quantity", operator: operator, value: above }]
+
+          expect { model.filtering(conditions).to_sql }.not_to raise_error
+        end
+      end
+
+      it "updates through the narrowed relation without raising" do
+        conditions = [{ field: "quantity", operator: "in", value: "3,#{above}" }]
+
+        expect(model.filtering(conditions).update_all(name: "renamed")).to eq(1)
+      end
+    end
+  end
+
   describe "combining conditions" do
     it "combines them with AND" do
       conditions = [
