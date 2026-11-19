@@ -75,30 +75,3 @@ Everything else — the field resolver, the index-key pattern, the casting mecha
 internal and may change without ceremony. Renaming, splitting or deleting an internal
 object needs no version bump and no deprecation. Changing anything in the list above, or
 the request format, or a message key, bumps the minor version.
-
-## Execution regime
-
-An agent handed a single commit implements that commit itself. It does not delegate the
-work it was given.
-
-Work spanning several commits is orchestrated: one agent per commit, dispatched by the
-orchestrating agent. Orchestration is one level deep — an orchestrated agent implements,
-it does not orchestrate in turn.
-
-## Commit style
-
-English, conventional format, one line. No body, no co-authoring trailer, no tool
-attribution.
-
-```
-feat: add the sort tie-breaker on the primary key
-```
-
-## No fix-up commits
-
-A defect found by a review, or a finding raised against work that is not yet merged, is
-repaired **in the commit that introduced it**. Amend or rebase; never append a follow-up.
-
-The history must read as if the implementation had been right the first time. A commit
-whose subject is a correction of an earlier unmerged commit does not belong in this
-repository.
